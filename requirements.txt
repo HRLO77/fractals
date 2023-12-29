@@ -1,0 +1,10 @@
+imageio
+av
+imageio-ffmpeg
+pygifsicle
+threadpoolctl
+pillow
+numpy
+matplotlib
+cython
+quicktions
