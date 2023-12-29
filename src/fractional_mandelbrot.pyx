@@ -2,7 +2,7 @@
 # disutils: language=c
 
 #center=(1.4,0)
-from .fractions cimport _fraction, _mult_fraction_double, _div_fraction_double, _add_fraction_double, _sub_fraction_double, _greater_than, _greater_than_double, _less_than, _less_than_double, _square
+from .fractions cimport _fraction, _mult_fraction_double, _div_fraction_double, _add_fraction_double, _sub_fraction_double, _greater_than, _greater_than_double, _less_than, _less_than_double, _square, _mult_fractions, _div_fractions, _add_fractions, _sub_fractions
 from libc.stdio cimport puts,printf
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
@@ -30,20 +30,20 @@ cdef inline ui_uc mandelbrot(const _fraction creal, const _fraction cimag, const
     real2 = _square(creal)
     imag2 = _square(cimag)
     real2 = _add_fractions(real2, imag2)
-    if _less_than(real2, mult_fraction_double(imag2, 0.25)):
+    if _less_than(real2, _mult_fraction_double(imag2, 0.25)):
         return return_func(cap, maxiter)
     elif _greater_than_double(real2, 4.0):
         return 0
     for n in range(maxiter):
         real2 = _square(real)
         imag2 = _square(imag)
-        if greater_than_double(_add_fractions(real2, imag2),  4.0):
+        if _greater_than_double(_add_fractions(real2, imag2),  4.0):
             if cap:
                 return <unsigned char>cround(_as_double(_mult_fraction_double(ratio, n)))
             else:
                 return n
-        imag = 2* real*imag + cimag
-        real = real2 - imag2 + creal
+        imag = _add_fractions(_mult_fraction_double(_mult_fractions(real, imag), 2), cimag)
+        real = _add_fractions(_sub_fractions(real2, imag2), creal)
         if (imag == cimag) and (real == creal):
             return return_func(cap, maxiter)
     return return_func(cap, maxiter)

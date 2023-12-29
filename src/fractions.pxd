@@ -58,6 +58,8 @@ cdef inline _fraction _n_power(_fraction first, double n) nogil:
     first.denominator = c_n_pow(first.denominator, n)
     return first
 
+cdef inline _Bool _eq_fractions(_fraction* first, _fraction* second)
+    cdef _Bool b = first
 cdef inline _fraction _cube(_fraction first) noexcept nogil:
     first.numerator = first.numerator*first.numerator*first.numerator
     first.denominator = first.denominator*first.denominator*first.denominator
