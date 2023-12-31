@@ -39,6 +39,10 @@ Width and height are the resolution, samples along the real and imaginary axis.
 
 maxiter is the maximum number of iterations to perform on each point before dropping out, and cap is whether or not you are rendering a video with the produced frame (naively scales all values frm 0 to 255)
 
+## fractions
+
+This repository has its own fractions implementation `./fractions.pxd`. It is NOT a drop-in replacement to the standard `fractions` module. It is significantly faster and unlike quicktions, can be used directly through cimports in cython for maximum speed. `src/fractional_mandelbrot.pyx` is still being implemented to use this file for very precise calculations.
+
 ## conclusion
 
 To see some previously made image renders or video zoom, see `./renders`.

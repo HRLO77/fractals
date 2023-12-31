@@ -8,7 +8,7 @@ include = ['src', *sys.path]
 
 args = ['-Ofast', '-funsafe-math-optimizations', '-mtune=native', '-march=native', '-ffinite-math-only', '-freciprocal-math', '-shared', '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-std=c++20', '-fno-trapping-math', '-fno-math-errno', '-fno-signed-zeros', '-falign-loops'] # args for GCC
 
-link_args = ['-static-libgcc', '-static-libstdc++', '-W','-Bstatic','--whole-file', '-lwinpthread']
+link_args = ['-static-libgcc', '-static-libstdc++', '-W','-Bstatic','--whole-file', '-lpthread']
 
 setup(
     ext_modules=cythonize([Extension("src.test", sources=["src/test.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
