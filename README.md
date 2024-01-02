@@ -41,7 +41,7 @@ maxiter is the maximum number of iterations to perform on each point before drop
 
 ## fractions
 
-This repository has its own fractions implementation `./fractions.pxd`. It is NOT a drop-in replacement to the standard `fractions` module. It is significantly faster and unlike quicktions, can be used directly through cimports in cython for maximum speed. `src/fractional_mandelbrot.pyx` is still being implemented to use this file for very precise calculations.
+This repository has its own fractions implementation `./fractions.pxd`. It is NOT a drop-in replacement to the standard `fractions` module. It is significantly faster and unlike quicktions, can be used directly through cimports in cython for maximum speed. However, the functions are verbose and unintuitive. Use at your own risk.
 
 ## conclusion
 
