@@ -1,104 +1,44 @@
-print('Importing...')
-import time
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-import threading, queue
-import asyncio
+import math
+import decimal
+from decimal import Context
+decimal.Context(500, None)
+decimal.getcontext().prec = 5000
+one = decimal.Decimal("1", Context(5000, None))
+zero = decimal.Decimal("0", Context(5000, None))
+def float_to_fraction (x, error=zero):
+    n = int(math.floor(x))
+    x -= n
+    if x < error:
+        return (n, one)
+    elif one - error < x:
+        return (n+one, one)
 
-import imageio as iio
-import imageio
-import numpy as np
+    # The lower fraction is 0/1
+    lower_n = zero
+    lower_d = one
+    # The upper fraction is 1/1
+    upper_n = one
+    upper_d = one
+    while True:
+        # The middle fraction is (lower_n + upper_n) / (lower_d + upper_d)
+        middle_n = lower_n + upper_n
+        middle_d = lower_d + upper_d
+        # If x + error < middle
+        if middle_d * (x + error) < middle_n:
+            # middle is our new upper
+            upper_n = middle_n
+            upper_d = middle_d
+        # Else If middle < x - error
+        elif middle_n < (x - error) * middle_d:
+            # middle is our new lower
+            lower_n = middle_n
+            lower_d = middle_d
+        # Else middle is our best fraction
+        else:
+            return (n * middle_d + middle_n, middle_d)
+        
+print(float_to_fraction(decimal.Decimal("0.00002276281458802574942404639696751451557095909568791588147481282552083", Context(5000, None)), zero))
 
-# All images must be of the same size
-# w = iio.get_writer('my_video.mp4', format='FFMPEG', mode='I', fps=30, output_params=['-preset', 'ultrafast', '-tune', 'zerolatency', '-an'], macro_block_size=100)
-# for i in range(30*10):
-#     w.append_data(((np.random.random_integers(0, 100, (1000,1000)))).astype(np.uint8))
-# w.close()
-# exit()
-# print(zaxpy(a=8j,x=8j,y=8j), (8j**2)+8j)
-# exit()
-print('Done importing!')
-if not os.path.isdir('./tests/'):
-    os.mkdir('./tests/')
+0.25058451760404277189577713169633296659134110469742451172446815720634771824937033688154636587293626982678995859601753061821325157518250355932434105740284155163149477888875663044839368498220412554672887693224051547359126054243265543041538328553828105222610130051154348796504216650549679675785767790167810527642882283736320195441512100105146856569843819285239720259894813001714410204879020849545487149450975692417905811784155232671918169369163643577935685860169944995799039667061326655445714352884988266
 
-# q: list|queue.Queue = queue.Queue()
-
-def chunk(i, HL, WL, chunks):
-    # x = np.linspace(x_min, x_max, WL//n_chunks)
-    # y = np.linspace(y_min, y_max, )
-    # X, Y = np.meshgrid(
-    #         x[i*chunk_size:(i+1)*chunk_size],
-    #         y[y_min:y_max]
-    # )
-    Y,X = np.ogrid[ -1.3:0:HL*1j, i:(i+chunks):WL*1j]
-    return X + 1j*Y
-
-# def mandelbrot_chunk(data, maxit, divtime):
-def mandelbrot_chunk(i, maxit, divtime, HL, WL, chunks):
-    """Returns an image of the Mandelbrot fractal of size (h,w)."""
-    data = chunk(i, HL, WL, chunks)
-    z = data
-    for i in range(maxit):
-        # z = zaxpy(a=z, x=z, y=data)
-        z = z*z
-        # z = zaxpy(a=z, x=z, y=c)
-        # z = ne.evaluate('(z*z)+c')
-        z += data
-        diverge = (np.abs(z)) > 2
-        # diverge = zaxpy(a=np.real(z), x=z, y=f) > 2      # who is diverging
-        # div_now = ((z.real*z) > 2) & (divtime==maxit)  # who is diverging now
-        divtime[(diverge) & (divtime==maxit)] = i                 # note when
-        z[diverge] = 3                        # avoid diverging too much
-        # plt.imshow(divtime)
-        # plt.show()
-    # print('\nFinished computing!')
-    # print(time.perf_counter()-b)
-    del diverge
-    # del div_now
-    del z
-    # divtime = np.rot90(divtime, 0, (1,0))
-    # return divtime
-    # return np.append(divtime,np.flipud(divtime)).reshape(HL*2, WL)
-    # q.put_nowait((i, divtime))
-    return divtime
-plt.switch_backend('TkAgg')
-
-async def mandelbrot(height:int, width:int, n_chunks: int=10, iterations:int=100):
-    # global q
-
-    # Size per dimension
-    # HL = round(((-y_min)*height))
-    b = time.perf_counter()
-    HL = height//2
-    WL = width//n_chunks
-    # WL = round(abs((x_min-x_max)*width))
-    chunks = (n_chunks)/n_chunks**2
-
-    divtime = iterations + np.zeros((HL, WL), dtype=np.uint8)
-    coros = []
-    
-    for i in np.linspace(-2, 0.5, n_chunks, dtype=np.float16):
-        # mandelbrot_chunk(i, iterations, divtime.copy(), HL, WL, chunks)
-        # t = threading.Thread(target=mandelbrot_chunk, args=(i, iterations, divtime.copy(), HL, WL, chunks), daemon=True, )
-        # t.start()
-        coros += [asyncio.to_thread(mandelbrot_chunk, i, iterations, divtime.copy(), HL, WL, chunks)]
-        # if round(i)==-2:
-        #     # plot = mandelbrot_chunk(chunk(i, HL, WL, n_chunks), iterations, divtime.copy())
-        #     plot = mandelbrot_chunk(i, iterations, divtime.copy(), HL, WL, chunks)
-        # else:
-        #     plot = np.append(plot, (mandelbrot_chunk(i, iterations, divtime.copy(), HL, WL, chunks)), axis=1)
-        # do stuff with chunk(i, j)
-        # print(i, plot.shape)
-    # f = False
-    # while not f:
-        # f = q.qsize()==n_chunks
-    # queue = [q.get_nowait() for i in range(n_chunks)]
-    # return np.hstack([i[1] for i in sorted(queue, key=lambda x:x[0])])
-    plot = np.hstack(await asyncio.gather(*coros, return_exceptions=False))
-    print(time.perf_counter()-b)
-    print('rendering...')
-    plt.imsave('output.png', plot)
-    # return np.append(plot,np.flipud(plot), axis=0)
-
-asyncio.run(mandelbrot(10000, 10000, 1000))
+0.2505845176040427718957771316508473905552515740661571423212687174479167

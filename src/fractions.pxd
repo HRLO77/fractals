@@ -3,14 +3,56 @@
 
 
 from libc.stdlib cimport malloc, free
-from libc.stdio cimport printf
+from libc.math cimport fma
 cdef extern from "<stdbool.h>" nogil:
     ctypedef bint _Bool
+
+'''cdef extern from "immintrin.h" nogil:
+    ctypedef double __m256d
+    const double _mm256_mul_pd(const double a, const double b) noexcept nogil
+    const double _mm256_add_pd(const double a, const double b) noexcept nogil
+    const double _mm256_div_pd(const double a, const double b) noexcept nogil
+    const double _mm256_sub_pd(const double a, const double b) noexcept nogil
+    const double _mm256_cmp_pd(const double a, const double b, const int imm8) noexcept nogil
+    const double _mm256_cmpeq_pd(const double a, const double b) noexcept nogil
+    const double _mm256_fmadd_pd(const double a, const double b, const double c) noexcept nogil
+    const double _mm256_fmsub_pd (const double a, const double b, const double c) noexcept nogil
+    const double _mm256_fmod_pd(const double a, const double b) noexcept nogil
+# Function using AVX2 for double multiplication
+
+cdef inline double fma_avx(__m256d x, double y, double z) noexcept nogil:
+    return _mm256_fmadd_pd(x, y, z)
+
+cdef inline double multiply_avx(__m256d x, double y) noexcept nogil:
+    return _mm256_mul_pd(x, y)
+
+# Function using AVX2 for double addition
+cdef inline double add_avx(__m256d x, double y) noexcept nogil:
+    return _mm256_add_pd(x, y)
+
+# Function using AVX2 for double division
+cdef inline double divide_avx(__m256d x, double y) noexcept nogil:
+    return _mm256_div_pd(x, y)
+
+# Function using AVX2 for double subtraction
+cdef inline double subtract_avx(__m256d x, double y) noexcept nogil:
+    return _mm256_sub_pd(x, y)
+
+# Function using AVX2 for double comparison
+cdef inline double _less_than_double(__m256d x, double y) noexcept nogil:
+    return _mm256_cmp_pd(x, y, 1)
+
+# Function using AVX2 for double comparison
+cdef inline double _greater_than_double(__m256d x, double y) noexcept nogil:
+    return _mm256_cmp_pd(x, y, 14)
+
+# Function using AVX2 for double equality comparison
+cdef inline double equal_avx(__m256d x, double y) noexcept nogil:
+    return _mm256_cmp_pd(x, y, 0)'''
 
 cdef extern from * nogil:
     '''
 #include <math.h>
-#include <stdio.h>
 
 struct _fraction {
     double numerator;
@@ -45,7 +87,7 @@ static double gcd1(const double n1, const double n2) {
     return 1 / g;
 }
 
-static double inline c_n_pow(double n1, const double pow) {
+static double inline c_n_pow(const double n1, const double pow) {
     double i;
     double x = n1;
     if (pow == 0.0) {
@@ -69,7 +111,7 @@ static struct _fraction inline _fracptr_2_frac(const _frac_ptr ptr) {
         double denominator
     ctypedef (_fraction*) _frac_ptr  # typedef
     const _fraction _fracptr_2_frac(const _frac_ptr ptr) noexcept nogil # converts an _frac_ptr type to _fraction.
-    const double gcd(const double n1, const double n2) noexcept nogil  # finds the gcd of two doubles
+    const double gcd(const double n1, const double n2) noexcept nogil  # finds the gcd of two __m256ds
     const double c_n_pow(double n1, const double pow) noexcept nogil  # raises n1 to pow
 
 cdef inline void _free_frac(_frac_ptr first) noexcept nogil:
@@ -109,8 +151,8 @@ cdef inline _fraction _cube(_fraction first) noexcept nogil:
     return first
 
 cdef inline _fraction _square(_fraction first) noexcept nogil:
-    first.numerator = first.numerator*first.numerator
-    first.denominator = first.denominator*first.denominator
+    first.numerator = fma(first.numerator, first.numerator, 0)
+    first.denominator = fma(first.denominator, first.denominator, 0)
     return first
 
 cdef inline _Bool _less_than_double(const _frac_ptr first, const double second) noexcept nogil:
@@ -129,11 +171,11 @@ cdef inline _fraction _mult_fraction_double(_fraction first, const double second
     return first
 
 cdef inline _fraction _add_fraction_double(_fraction first, const double second) noexcept nogil: # first is the greater
-    first.numerator = (first.numerator+(second*first.denominator))
+    first.numerator = fma(second, first.denominator, first.numerator)
     return first
 
 cdef inline _fraction _sub_fraction_double(_fraction first, const double second) noexcept nogil: # first is the greater
-    first.numerator = (first.numerator-(second*first.denominator))
+    first.numerator = fma(-second, first.denominator, first.numerator)
     return first
 
 cdef inline _fraction _reciprocal_double(const double first) noexcept nogil:
@@ -144,16 +186,16 @@ cdef inline _fraction _reciprocal_double(const double first) noexcept nogil:
     return res
 # top is double math
 
-cdef inline _Bool _greater_than_fraction(const _frac_ptr first, const _fraction *second) noexcept nogil:
+cdef inline _Bool _greater_than_fraction(const _frac_ptr first, const _frac_ptr second) noexcept nogil:
     return ((second).numerator*first.denominator) < (first.numerator*(second).denominator)
 
-cdef inline _Bool _less_than_fraction(const _frac_ptr first, const _fraction *second) noexcept nogil:
+cdef inline _Bool _less_than_fraction(const _frac_ptr first, const _frac_ptr second) noexcept nogil:
     return ((second).numerator*first.denominator) > (first.numerator*(second).denominator)
 
 cdef inline void _simplify_fraction(_frac_ptr first) noexcept nogil:
     cdef double factor = gcd(first.numerator, first.denominator)
-    first.numerator = first.numerator*factor
-    first.denominator = first.denominator*factor
+    first.numerator = fma(first.numerator,factor,0)
+    first.denominator = fma(first.denominator,factor,0)
 
 cdef inline _fraction _negative(_fraction first) noexcept nogil:
     first.numerator = -first.numerator
@@ -188,19 +230,19 @@ cdef inline _fraction _add_fractions(_fraction first, const _frac_ptr second) no
     # -2/1 + 3/640
     # 3-1280/640
     #cdef double factor1 = (first.denominator*second.denominator)#*gcd(first.denominator, second.denominator)  # easiest way tbh
-    first.numerator = (second.numerator*(first.denominator))+(first.numerator*(second.denominator))
+    first.numerator = fma(first.numerator,(second.denominator),fma((second.numerator),(first.denominator),0))
     first.denominator=(first.denominator*second.denominator)
     _fix_num_den(&first)
     return first
 
 cdef inline _fraction _sub_fractions(_fraction first, _frac_ptr second) noexcept nogil: # first is the greater
-    first.numerator = (first.numerator*(second.denominator))-(second.numerator*(first.denominator))
+    first.numerator = fma(first.numerator,(second.denominator),(fma((-second.numerator),(first.denominator),0)))
     first.denominator = first.denominator*second.denominator
     _fix_num_den(&first)
     return first
 
 cdef inline double _as_double(const _frac_ptr first) noexcept nogil:
-    #printf("Im being doubled %f %f\n", first.numerator, first.denominator)
+    #printf("Im being __m256dd %f %f\n", first.numerator, first.denominator)
     return first.numerator/first.denominator
 
 cpdef inline _Bool greater_than_fraction(const _fraction first, const _fraction second) noexcept nogil:

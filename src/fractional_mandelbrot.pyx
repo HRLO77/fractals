@@ -1,13 +1,11 @@
-# cython: language_level=3
-
-
-#, binding=False, infer_types=False, wraparound=False, boundscheck=False, cdivision=True, overflowcheck=False, overflowcheck.fold=False, nonecheck=False, initializedcheck=False, always_allow_keywords=False, c_api_binop_methods=True, warn.undeclared=True, CYTHON_ASSUME_SAFE_MACROS=True, CYTHON_FAST_GIL=True, CYTHON_USE_DICT_VERSIONS=True, CYTHON_ASSUME_SAFE_SIZE=True
+# cython: language_level=3, binding=False, infer_types=False, wraparound=False, boundscheck=False, cdivision=True, overflowcheck=False, overflowcheck.fold=False, nonecheck=False, initializedcheck=False, always_allow_keywords=False, c_api_binop_methods=True, warn.undeclared=True, CYTHON_ASSUME_SAFE_MACROS=True, CYTHON_FAST_GIL=True, CYTHON_USE_DICT_VERSIONS=True, CYTHON_ASSUME_SAFE_SIZE=True
 # disutils: language=c
 
 #center=(1.4,0)
 from .fractions cimport _fraction, _mult_fraction_double, _div_fraction_double, _add_fraction_double, _sub_fraction_double, _greater_than_fraction, _greater_than_double, _less_than_fraction, _less_than_double, _square, _mult_fractions, _div_fractions, _add_fractions, _sub_fractions, _eq_fractions, _as_double, _set_num_den, _fracptr_2_frac, _free_frac, _frac_ptr, _simplify_fraction
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
+from cython.parallel cimport parallel, prange
 
 cdef extern from "<stdbool.h>" nogil:
     ctypedef bint _Bool
@@ -26,22 +24,18 @@ cdef inline ui_uc return_func(const bool cap, const ui_uc max) noexcept nogil:
         return max
 
 cdef ui_uc mandelbrot(const _fraction creal, const _fraction cimag, const ui_uc maxiter, const bool cap, const _fraction ratio) noexcept nogil:
-    cdef _fraction temp1, nreal, real, imag
+    cdef _fraction temp1, nreal, real = creal, imag = cimag
     cdef unsigned int n
-    temp1 = _fraction(numerator=1, denominator=1)
-    nreal = temp1
-    real = creal
-    imag = cimag
     for n in range(maxiter):
 
         temp1 = _square(imag)
 
         nreal = _add_fractions(_sub_fractions(_square(real), &temp1), &creal)  # nreal = (r^2 - i^2) + creal
-        _simplify_fraction(&nreal)
+        
 
         imag = _add_fractions(_mult_fraction_double(_mult_fractions(real, &imag),2), &cimag) # imag = temp2+cimag
         _simplify_fraction(&imag)
-
+        _simplify_fraction(&nreal)
         real = nreal
 
         temp1 = _square(imag) # temp1 = i^2
@@ -93,6 +87,22 @@ cdef list uc_2_list(const unsigned char** arr, const unsigned int xlen, const un
     free(arr)
     return l
 
+cdef unsigned int** main1(unsigned int** arr, const _frac_ptr r1, const _frac_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter, const _fraction ratio) noexcept nogil:
+    cdef unsigned int i,j
+    with parallel():
+        for i in prange(width, nogil=True):
+            for j in prange(height, nogil=True):
+                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, True, ratio)
+    return arr
+
+cdef unsigned char** main2(unsigned char** arr, const _frac_ptr r1, const _frac_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter, const _fraction ratio) noexcept nogil:
+    cdef unsigned int i,j
+    with parallel():
+        for i in prange(width, nogil=True):
+            for j in prange(height, nogil=True):
+                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, True, ratio)
+    return arr
+
 cpdef public list main(const _fraction xmin, const _fraction xmax, const _fraction ymin, const _fraction ymax, const unsigned int width, const unsigned int height, const ui_uc maxiter, const bool cap):
     cdef unsigned int i,j
     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
@@ -114,13 +124,15 @@ cpdef public list main(const _fraction xmin, const _fraction xmax, const _fracti
     linspace(r2, height, ymin, ymax)
     if cap:
         _set_num_den(&ratio, 255, maxiter)
-        for i in range(width):
-            for j in range(height):
-                arr1[i][j] = mandelbrot(r1[i], r2[j], maxiter, True, ratio)
+        main2(arr1,r1, r2, width, height, maxiter, ratio)
+        #for i in range(width):
+        #    for j in range(height):
+        #        arr1[i][j] = mandelbrot(r1[i], r2[j], maxiter, True, ratio)
     else:
-        for i in range(width):
-            for j in range(height):
-                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, False, ratio)
+        main1(arr,r1, r2, width, height, maxiter, ratio)
+        #for i in range(width):
+        #    for j in range(height):
+        #        arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, False, ratio)
 
     free(r2)
     free(r1)
