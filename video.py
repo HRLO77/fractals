@@ -20,14 +20,14 @@ real, imag = fractions.fraction(numerator=25058451760404277189577713165084739055
 # other possible zooms,  (-1.62917,-0.0203968)  (0.42884,-0.231345)
 # data = np.rot90(new_video.main(-2, 0.5, -1.3, 0, 500, 250, 100))
 # w = imageio.get_writer('mandelbrot.mp4', format='FFMPEG', mode='I', fps=30, output_params=['-preset', 'ultrafast', '-tune', 'zerolatency', '-an'], macro_block_size=16, )
-iterations = 630
+iterations = 1000
 xmin = fractions.fraction(numerator=-2, denominator=1)
 xmax = fractions.fraction(numerator=1, denominator=1)
 ymin = fractions.fraction(numerator=-6, denominator=5)
 ymax = fractions.fraction(numerator=6, denominator=5)
 zoom_const = fractions.fraction(numerator=19, denominator=20)
 b=time.perf_counter()
-plt.imshow(fractional_mandelbrot.main((xmin), (xmax), (ymin), (ymax), 480, 360, 50, False))
+plt.imshow(fractional_mandelbrot.main((xmin), (xmax), (ymin), (ymax), 320, 240, 1000, False, 2))
 print(time.perf_counter()-b)
 plt.show()
 def thread(yt, yb, lx, rx, i):
@@ -37,10 +37,10 @@ def thread(yt, yb, lx, rx, i):
         # max = 255
     # return np.invert(np.rot90(((x*(max/(250+i))).astype(np.uint8))))
     print(i, end='\r')
-    if i < 525:  # 17.5 seconds in
-        return np.rot90(mandelbrot.main(as_double(yt), as_double(yb), as_double(lx), as_double(rx), 480, 360, 150+round(i*1.3), False))
+    if i < 500:  # 17.5 seconds in
+        return np.rot90(mandelbrot.main(as_double(yt), as_double(yb), as_double(lx), as_double(rx), 320, 240, 150+round(i*2), False))
     else:
-        return np.rot90(fractional_mandelbrot.main(yt, yb, lx, rx, 480, 360, 150+round(i*1.3), False))
+        return np.rot90(fractional_mandelbrot.main(yt, yb, lx, rx, 320, 240, 150+round(i*2), False, 1))
 
 async def main():
     global xmin, xmax, ymin, ymax, real, imag
@@ -53,6 +53,8 @@ async def main():
         ymin = fractions.simplify_fraction(ymin)
         ymax = fractions.simplify_fraction(ymax)
         xmax = fractions.simplify_fraction(xmax)
+        # print(ymin, ymax, xmin, xmax, end='\r')
+        # time.sleep(0.01)
         data += [asyncio.to_thread(thread, xmin, xmax, ymin, ymax, int(i))]
         ymin = fractions.add_fractions(fractions.mult_fractions(fractions.sub_fractions(ymin, imag), zoom_const), imag)
         ymax = fractions.add_fractions(fractions.mult_fractions(fractions.sub_fractions(ymax, imag), zoom_const), imag)
@@ -61,9 +63,7 @@ async def main():
         
 
         
-        # print(yt, yb, lx, rx)
-        # time.sleep(1)
-    
+
     data = np.array(await asyncio.gather(*data, return_exceptions=True, ), dtype=np.uint32)
     print("\nWriting...\n")
     def update(n):
