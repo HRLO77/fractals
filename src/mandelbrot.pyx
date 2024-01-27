@@ -6,6 +6,7 @@
 from libc.stdio cimport puts,printf
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
+from cython.parallel cimport parallel, prange
 
 cdef extern from "<stdbool.h>" nogil:
     ctypedef bint _Bool
@@ -82,6 +83,22 @@ cdef list uc_2_list(const unsigned char** arr, const unsigned int xlen, const un
     free(arr)
     return l
 
+cdef unsigned int** main1(unsigned int** arr, const long double* r1, const long double* r2, const unsigned int width, const unsigned int height, const unsigned int maxiter, const bool cap, const long double ratio,) noexcept nogil:
+    cdef unsigned int i,j
+    with parallel():
+        for i in prange(width, nogil=True):
+            for j in prange(height, nogil=True):
+                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, cap, ratio)
+    return arr
+
+cdef unsigned char** main2(unsigned char** arr, const long double* r1, const long double* r2, const unsigned int width, const unsigned int height, const unsigned int maxiter, const bool cap, const long double ratio,) noexcept nogil:
+    cdef unsigned int i,j
+    with parallel():
+        for i in prange(width, nogil=True):
+            for j in prange(height, nogil=True):
+                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, cap, ratio)
+    return arr
+
 cpdef public list main(const long double xmin, const long double xmax, const long double ymin, const long double ymax, const unsigned int width, const unsigned int height, const ui_uc maxiter, const bool cap) noexcept:
     cdef unsigned int i,j
     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
@@ -102,13 +119,9 @@ cpdef public list main(const long double xmin, const long double xmax, const lon
     linspace(r2, height, ymin, ymax)
     if cap:
         ratio = 255.0/maxiter
-        for i in range(width):
-            for j in range(height):
-                arr1[i][j] = mandelbrot(r1[i], r2[j], maxiter, cap, ratio)
+        main2(arr1, r1, r2, width, height, maxiter, cap, ratio)
     else:
-        for i in range(width):
-            for j in range(height):
-                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, False, 0)
+        main1(arr, r1, r2, width, height, maxiter, cap, ratio)
 
     free(r2)
     free(r1)
