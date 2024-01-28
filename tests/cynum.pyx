@@ -3,11 +3,11 @@
 from libc.math cimport fabs, floor, ceil
 from libc.stdlib cimport malloc, free, realloc, calloc, abs as cabs
 from libc.string cimport memcpy, strcpy as _strcpy, strlen as _strlen, strrchr as _strrchr, strtok as _strtok, strcat as _strcat, strpbrk as _strpbrk, memset as _memset
-from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t
+from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t, likely, unlikely
 
 
 cdef char* _dec_2_str(const _cydecimal_ptr dec) noexcept nogil:
-    cdef char* string = <char*>malloc(sizeof(char)*((MAX_LENGTH)+25))
+    cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
     if temp != 0:
         temp2 = <iterable_t>floor(log10((temp))+1)
@@ -19,6 +19,7 @@ cdef char* _dec_2_str(const _cydecimal_ptr dec) noexcept nogil:
             x += 1
         if dec.digits[i] >= 0:
             string[i+x] = dec.digits[i]+<char>48
+            pass
         else:
             string[i] = <char>45
             x+=1
@@ -31,16 +32,60 @@ cdef char* _dec_2_str(const _cydecimal_ptr dec) noexcept nogil:
             x += 1
         for i in range(temp2):  # n of digits
             string[MAX_LENGTH+x+i] = (temp%10)+<char>48
-            temp = temp//10
+            temp = <exponent_t>temp//10
     else:
         string[MAX_LENGTH+x] = <char>48  # set to zero
     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
-    string[MAX_LENGTH+temp2+x-1] = <char>0
+    string[MAX_LENGTH+temp2+x] = <char>0
     return string
 
+cdef _cydecimal _norm_decimal_from_string(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
+    cdef _cydecimal res
+    cdef iterable_t length = _strlen(first)
+    cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
+    memcpy(strtok_backup, first, sizeof(first))
+    cdef char* small = <char*>malloc(sizeof(char)*length)
+    cdef char* small_copy = small
+    small = _strrchr(first, b'.')
+    small = small+1
+    cdef char* large = <char*>malloc(sizeof(char)*length)
+    cdef char* large_copy = large
+    large = _strtok(strtok_backup, b'.')
+    cdef char* large_norm = <char*>malloc(sizeof(char)*length)
+    cdef char* large_norm_copy = large_norm
+    large_norm = large
+    free(strtok_backup)
+    
+    cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
+    if large_len > N_DIGITS:
+        large_len = N_DIGITS  # prefer larger value over smaller, more precise
+    if (small_len+large_len) > N_DIGITS:
+        i = N_DIGITS-large_len
+        if small_len > i:
+            small_len = i # save any remaining space for the precise digits
+    free(large_copy)
+    large_len = large_len+small_len
+    large = <char*>malloc(sizeof(char)*(large_len))
+    large_copy = large
+    memcpy(&large, &large_norm, (length))
+    free(large_norm_copy)
+    _strcat(large, small)
+    free(small_copy)
+    res.exp = small_len  # increase precise digits
+    #cdef char[MAX_LENGTH] digits = <char*>malloc(sizeof(char)*MAX_LENGTH)   # alloc
+    #for i in range(MAX_LENGTH):
+    #    digits[i] = 0
+    
+    memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
+    
+    for i in range((large_len)-1, -1, -1):
+        res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-<char>48
+    free(large_copy)
+    
+    #memcpy(&res.digits, digits, sizeof(digits))
+    return res
 
-
-cdef _cydecimal _new_decimal_from_string(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
+cdef _cydecimal _decimal_from_string(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
     cdef _cydecimal res
     cdef iterable_t length = _strlen(first)
     res.exp = 0
@@ -72,7 +117,7 @@ cdef _cydecimal _new_decimal_from_string(const char* first) noexcept nogil:  # u
     #memcpy(&res.digits, digits, sizeof(digits))
     return res
 
-cdef _cydecimal _new_decimal_from_int(int first) noexcept nogil:
+cdef _cydecimal _decimal_from_int(int first) noexcept nogil:
     cdef iterable_t i, large_lim = <int>floor(log10(cabs(first))+1)
     cdef _cydecimal res
     res.exp = 0
@@ -86,11 +131,31 @@ cdef _cydecimal _new_decimal_from_int(int first) noexcept nogil:
             break
     return res
 
-cdef _cydecimal _new_decimal_from_large_double(const double first) noexcept nogil:
+cdef _cydecimal _norm_decimal_from_double(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)
+    cdef double temp=first
+    cdef iterable_t i, large_lim
+    cdef _cydecimal res
+    res.exp = 0
+    memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
+    while (ceil(fabs(temp))!=fabs(temp)):
+        res.exp += 1
+        temp = temp*10
+    large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
+    if unlikely(large_lim > N_DIGITS):
+        large_lim = N_DIGITS_I
+    # test: 8204.172
+    for i in range(large_lim):
+        res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
+        temp = floor(temp*0.1)
+    return res
+
+cdef _cydecimal _decimal_from_double(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
     cdef double large = floor(first), small, temp
     small = first-large  # decimal portion
     temp = large
-    cdef iterable_t i, large_lim = <int>floor(log10(fabs(large))+1)
+    cdef iterable_t i, large_lim = (<iterable_t>floor(log10(fabs(large))+1))
+    if unlikely(large_lim > N_DIGITS):
+        large_lim = N_DIGITS_I
     cdef _cydecimal res
     res.exp = 0
     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
@@ -99,10 +164,13 @@ cdef _cydecimal _new_decimal_from_large_double(const double first) noexcept nogi
         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
         temp = floor(temp*0.1)
     temp = small
-    while (temp!=ceil(temp)):
+    i = N_PRECISION
+    while (fabs(temp)!=ceil(fabs(temp))):
         temp = (temp*10)
-        res.digits[N_PRECISION+i] = <char>fmod(floor(temp), 10)
-    
+        res.digits[i] = <char>fmod(floor(temp), 10)
+        i += 1
+        if i > MAX_INDICE:
+            break
     return res
 
 cdef _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogil:
@@ -132,7 +200,7 @@ cdef _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept
     elif second.exp > first.exp:
         t = second.exp-first.exp
         _left_shift_digits(&first, t)  # bring up value
-    cdef char overflow = 0, res = 0
+    cdef char res = 0
     cdef bool small = False, negate=False
     cdef _cydecimal temp
 
@@ -142,25 +210,25 @@ cdef _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept
         first = temp # swap
         negate = True
     if _eq_digits(&first, &second):  # is this really worth it?
-        return _new_decimal_from_int(0)
+        return _decimal_from_int(0)
 
     for i in range(MAX_INDICE-1, -1, -1):
-        x = first.digits[i] - overflow
+        x = first.digits[i] - res
         y = second.digits[i]
 
         small = x < y
         if small:x+=10
         res = (x) - y 
         if res > 9:
-            overflow = ((res)%10)
+            res = ((res)%10)
         else:
-            overflow=res
+            res=res
         if negate:
-            if overflow!=0:
+            if res!=0:
                 index=i
-        first.digits[i] = overflow  # always positive
+        first.digits[i] = res  # always positive
 
-        overflow = (1*small)
+        res = (1*small)
         #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
     if negate:
         first.digits[index] = -first.digits[index]
