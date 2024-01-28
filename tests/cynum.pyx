@@ -181,14 +181,19 @@ cdef _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogi
     elif second.exp > first.exp:
         x = second.exp-first.exp
         _left_shift_digits(&first, x)  # bring up value
-    cdef char overflow = 0, res = 0
+    cdef char overflow = 0, res = 0, z, y
     for i in range(MAX_INDICE, -1, -1):
-        res = first.digits[i] + second.digits[i] + overflow
-        overflow = res
-        if overflow > 9:
-            overflow = overflow%10
-        first.digits[i] = overflow  # get the last digit
-        overflow = <char>((res-overflow)*0.1)
+        y = second.digits[i]
+        z = first.digits[i]
+        if (y!=0):
+            if (x!=0):
+                if overflow!=0:
+                    res = z + y + overflow
+                    overflow = res
+                    if overflow > 9:
+                        overflow = overflow%10
+                    first.digits[i] = overflow  # get the last digit
+                    overflow = <char>((res-overflow)*0.1)
     return first
 
 cdef _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept nogil:
@@ -213,23 +218,28 @@ cdef _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept
         return _decimal_from_int(0)
 
     for i in range(MAX_INDICE-1, -1, -1):
-        x = first.digits[i] - res
         y = second.digits[i]
+        x = first.digits[i]
+        if (y!=0):
+            if (x!=0):
+                if (res!=0):
+                    x = x - res
+                    y = y
 
-        small = x < y
-        if small:x+=10
-        res = (x) - y 
-        if res > 9:
-            res = ((res)%10)
-        else:
-            res=res
-        if negate:
-            if res!=0:
-                index=i
-        first.digits[i] = res  # always positive
+                    small = x < y
+                    if small:x+=10
+                    res = (x) - y 
+                    if res > 9:
+                        res = ((res)%10)
+                    else:
+                        res=res
+                    if negate:
+                        if res!=0:
+                            index=i
+                    first.digits[i] = res  # always positive
 
-        res = (1*small)
-        #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
+                    res = (1*small)
+                    #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
     if negate:
         first.digits[index] = -first.digits[index]
     return first

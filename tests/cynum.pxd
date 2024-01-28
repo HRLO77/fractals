@@ -301,10 +301,11 @@ cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
     _printf_dec(&dec)
 
 cpdef inline void test() noexcept nogil:
-    cdef _cydecimal test = _norm_decimal_from_string((b'1251.18239'))
+    cdef _cydecimal test = _decimal_from_int((54134))
+    cdef _cydecimal test1 = _decimal_from_int((6134))
     cdef iterable_t i
     #_printf_dec(&test)
     #_printf_dec(&test1)
-    test = _subtract_decimals(test, test)
+    test = _subtract_decimals(test, test1)
     #_printf_dec(&test)
     # -578.996009
