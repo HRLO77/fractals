@@ -1,4 +1,7 @@
-
+from os import add_dll_directory
+add_dll_directory('/MinGW/bin/')
+from tests.cynum import test
+test()
 exit()
 import src.mandelbrot_decimal as mandelbrot_decimal
 import src.mandelbrot as mandelbrot
