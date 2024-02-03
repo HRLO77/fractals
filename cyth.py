@@ -1,6 +1,8 @@
 from setuptools import setup, Extension
 import setuptools
 from Cython.Build import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.fast_fail = True 
 import sys
 include = ['src', *sys.path]
 cd = {'language_level' : "3"}

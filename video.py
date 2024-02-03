@@ -1,5 +1,6 @@
 from os import add_dll_directory
 add_dll_directory('/MinGW/bin/')
+from tests.pynum import cydecimal
 from tests.cynum import test
 test()
 exit()
