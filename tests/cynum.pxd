@@ -17,8 +17,8 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)20)
-#define N_PRECISION ((iterable_t)6)
+#define N_DIGITS ((iterable_t)12)
+#define N_PRECISION ((iterable_t)5)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
@@ -660,8 +660,5 @@ cdef inline dict _format_decimal(const _cydecimal_ptr res) noexcept:
 cpdef inline void test() noexcept nogil:
     cdef _cydecimal test = _decimal_from_string(b'12.5712')
     cdef _cydecimal test1 = _decimal_from_string(b'39.19001')
-    _printf_dec(&test1)
-    _printf_dec(&test)
     test = _mult_decimals(&test, &test1)
-    _printf_dec(&test)
     # -578.996009
