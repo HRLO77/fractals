@@ -403,6 +403,7 @@ cdef inline _cydecimal _decimal_from_double(const double first) noexcept nogil
 cdef inline _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept nogil
 cdef inline _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogil
 cdef inline _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
+cdef inline _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
 
 cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:
     return dereference(first)
@@ -523,68 +524,42 @@ cdef inline void _normalize_digits_cy(_cydecimal_ptr first, const bool mode) noe
         return
 
 
-cpdef inline _cydecimal new_decimal_from_string(const char* first) noexcept:
-    cdef _cydecimal res = _decimal_from_string(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict new_decimal_from_string(const char* first) noexcept:
+    return _format_decimal(_decimal_from_string(first)) 
 
-cpdef inline _cydecimal norm_decimal_from_string(const char* first) noexcept:
+cpdef inline dict norm_decimal_from_string(const char* first) noexcept:
+    return _format_decimal(_norm_decimal_from_string(first))  
 
-    cdef _cydecimal res = _norm_decimal_from_string(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict norm_decimal_from_double(const double first) noexcept:
+    return _format_decimal(_norm_decimal_from_double(first)) 
 
-cpdef inline _cydecimal norm_decimal_from_double(const double first) noexcept:
-    cdef _cydecimal res = _norm_decimal_from_double(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict new_decimal_from_double(const double first) noexcept:
+    return _format_decimal(_decimal_from_double(first)) 
 
-cpdef inline _cydecimal new_decimal_from_double(const double first) noexcept:
-    cdef _cydecimal res = _decimal_from_double(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
-
-cpdef inline _cydecimal new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:
+cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:
     cdef char[MAX_LENGTH] d = <char*> digits
-    cdef _cydecimal res = _decimal(&d, exp, t)
+    cdef dict i = _format_decimal(_decimal(&d, exp, t))
     free(d)
-    cdef dict i = _format_decimal(&res)
     
     return i 
     
-cpdef inline _cydecimal norm_decimal_from_int(int first) noexcept:
-    cdef _cydecimal res = _norm_decimal_from_int(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict norm_decimal_from_int(int first) noexcept:
+    return _format_decimal(_norm_decimal_from_int(first)) 
 
-cpdef inline _cydecimal new_decimal_from_int(int first) noexcept:
-    cdef _cydecimal res = _decimal_from_int(first)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict new_decimal_from_int(int first) noexcept:
+    return _format_decimal(_decimal_from_int(first)) 
 
-cpdef inline _cydecimal normalize_digits(_cydecimal res, const bool mode) noexcept:
+cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:
     _normalize_digits(&res, mode)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+    return _format_decimal(res) 
 
-cpdef inline _cydecimal right_shift_digits(_cydecimal res, const iterable_t num) noexcept:
+cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:
     _right_shift_digits(&res, num)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+    return _format_decimal(res) 
 
-cpdef inline _cydecimal left_shift_digits(_cydecimal res, const iterable_t num) noexcept:
+cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:
     _left_shift_digits(&res, num)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+    return _format_decimal(res) 
 
 cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
     return _greater_than_digits(&first, &second)
@@ -614,25 +589,21 @@ cpdef inline bool eq_exp(_cydecimal first, _cydecimal second) noexcept nogil:
 cpdef inline bool true_eq(_cydecimal first, _cydecimal second) noexcept nogil:
     return _true_eq(&first, &second)
 
-cpdef inline _cydecimal add_decimals(_cydecimal first, _cydecimal second) noexcept:
-    cdef _cydecimal res = _add_decimals(first, second)
-    cdef dict i = _format_decimal(&res)
+cpdef inline dict add_decimals(_cydecimal first, _cydecimal second) noexcept:
+    return _format_decimal(_add_decimals(first, second)) 
+
+cpdef inline dict subtract_decimals(_cydecimal first, _cydecimal second) noexcept:
+    cdef dict i = _format_decimal(_subtract_decimals(first, second))
     
     return i 
 
-cpdef inline _cydecimal subtract_decimals(_cydecimal first, _cydecimal second) noexcept:
-    cdef _cydecimal res = _subtract_decimals(first, second)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
-
-cpdef inline int n_precision(const _cydecimal first) noexcept nogil:
+cpdef inline iterable_t n_precision(const _cydecimal first) noexcept nogil:
     return _n_precision(&first)
 
-cpdef inline int n_digits(const _cydecimal first) noexcept nogil:
+cpdef inline iterable_t n_digits(const _cydecimal first) noexcept nogil:
     return _n_digits(&first)
 
-cpdef inline int n_whole_digits(const _cydecimal first) noexcept nogil:
+cpdef inline iterable_t n_whole_digits(const _cydecimal first) noexcept nogil:
     return _n_whole_digits(&first)
 
 cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:
@@ -641,19 +612,16 @@ cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:
 cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
     _printf_dec(&dec)
 
-cpdef inline _cydecimal mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
-    cdef _cydecimal res = _mult_decimals(&first, &second)
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict square_decimal(const _cydecimal first) noexcept:
+    return _format_decimal(_square_decimal(&first)) 
 
-cpdef inline _cydecimal empty_decimal() noexcept:
-    cdef _cydecimal res = _empty_decimal()
-    cdef dict i = _format_decimal(&res)
-    
-    return i 
+cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
+    return _format_decimal(_mult_decimals(&first, &second)) 
 
-cdef inline dict _format_decimal(const _cydecimal_ptr res) noexcept:
+cpdef inline dict empty_decimal() noexcept:
+    return _format_decimal(_empty_decimal()) 
+
+cdef inline dict _format_decimal(const _cydecimal res) noexcept:
     cdef bytes x = res.digits[:MAX_LENGTH]
     return {'exp': res.exp, 'negative': res.negative, 'digits': x}
 

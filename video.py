@@ -1,8 +1,13 @@
 from os import add_dll_directory
 add_dll_directory('/MinGW/bin/')
+import time
 from tests.pynum import cydecimal
-from tests.cynum import test
-test()
+
+b = time.perf_counter()
+# from tests.cynum import test, printf_dec
+f = cydecimal(b'1.43')
+print(time.perf_counter()-b)
+print(f.mynum)
 exit()
 import src.mandelbrot_decimal as mandelbrot_decimal
 import src.mandelbrot as mandelbrot

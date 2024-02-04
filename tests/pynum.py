@@ -8,9 +8,7 @@ class cydecimal:
             if isinstance(init, str):
                 init = init.encode()
             if norm: # normalized\
-                print('in')
                 self.mynum = (norm_decimal_from_string(init))
-                print('out of initi')
             else:
                 self.mynum = (new_decimal_from_string(init))
         elif isinstance(init, int):
@@ -37,9 +35,6 @@ class cydecimal:
         return (new_decimal(init, exponent, negative))
 
 
-    def _get_cydecimal(self):
-        return self.mynum
-
     def __add__(self, other):
         result = add_decimals((self.mynum), (other.mynum))
         return (result)
@@ -52,7 +47,11 @@ class cydecimal:
         result = mult_decimals((self.mynum), (other.mynum))
         return (result)
 
+    def __pow__(self, i):
+        assert i==2, "Only squaring is currently supported"
+        return square_decimal(self.mynum)
+    
     def __del__(self):
         self.mynum['exp']=0
         self.mynum['negative']=False
-        self.mynum['digits'] = b''
+        self.mynum['digits'] = b'1'

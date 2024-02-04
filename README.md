@@ -43,6 +43,12 @@ maxiter is the maximum number of iterations to perform on each point before drop
 
 This repository has its own fractions implementation `./fractions.pxd`. It is NOT a drop-in replacement to the standard `fractions` module. It is significantly faster and unlike quicktions, can be used directly through cimports in cython for maximum speed. However, the functions are verbose and unintuitive. Use at your own risk.
 
+## fixed point arithmetic
+
+This repository also has its own fixed point arithmetic implementation `tests/cynum.pyx`. It is NOT a drop-in replacement to  the standard `decimal` moudle. It is significantly faster and unlike decimal or other libraries, does not require installing and building GMP, MPFR or other libraries can can be used directly through cimports in cython for maximum speed. However, the functions are verbose and unintuitive.
+
+Mandelbrot calculations still need to be implemented using this c extension.
+
 ## conclusion
 
 To see some previously made image renders or video zoom, see `./renders`.
