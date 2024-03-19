@@ -5,7 +5,35 @@
     "distutils": {
         "depends": [],
         "extra_compile_args": [
-            "-O1"
+            "-Ofast",
+            "-funsafe-math-optimizations",
+            "-mtune=native",
+            "-march=native",
+            "-ffinite-math-only",
+            "-freciprocal-math",
+            "-shared",
+            "-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION",
+            "-std=c++20",
+            "-fno-trapping-math",
+            "-fno-math-errno",
+            "-fno-signed-zeros",
+            "-falign-loops",
+            "-ffp-contract=fast",
+            "-ftree-vectorize",
+            "-mavx",
+            "-mavx2",
+            "-ftree-vectorizer-verbose=5",
+            "-fopenmp",
+            "-faggressive-loop-optimizations",
+            "-floop-nest-optimize",
+            "-funroll-all-loops",
+            "-ftree-parallelize-loops=5",
+            "-ftree-loop-optimize",
+            "-floop-parallelize-all",
+            "-ffinite-loops",
+            "-Wwrite-strings",
+            "-lgomp",
+            "-fprefetch-loop-arrays"
         ],
         "extra_link_args": [
             "-static-libgcc",
@@ -29,14 +57,18 @@
             "C:\\Users\\owner\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32",
             "C:\\Users\\owner\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32\\lib",
             "C:\\Users\\owner\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pythonwin",
-            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages"
+            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages",
+            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\include",
+            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\Include",
+            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\include",
+            "C:\\Users\\owner\\AppData\\Local\\Programs\\Python\\Python312\\Include"
         ],
-        "name": "tests.cynum",
+        "name": "tests.precision_mandelbrot",
         "sources": [
-            "tests/cynum.pyx"
+            "tests/precision_mandelbrot.pyx"
         ]
     },
-    "module_name": "tests.cynum"
+    "module_name": "tests.precision_mandelbrot"
 }
 END: Cython Metadata */
 
@@ -1113,8 +1145,8 @@ static CYTHON_INLINE float __PYX_NAN() {
   #endif
 #endif
 
-#define __PYX_HAVE__tests__cynum
-#define __PYX_HAVE_API__tests__cynum
+#define __PYX_HAVE__tests__precision_mandelbrot
+#define __PYX_HAVE_API__tests__precision_mandelbrot
 /* Early includes */
 #include <math.h>
 #include <string.h>
@@ -1126,7 +1158,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)50)
+#define N_DIGITS ((iterable_t)150)
 #define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
@@ -1222,33 +1254,35 @@ static inline void _destruct_decimal(_cydecimal_ptr first){
 }
 
 static char* _dec_2_str(const _cydecimal_ptr dec) {
-    char* string = (char*)malloc((MAX_LENGTH + 20) * sizeof(char));
+    char* string = (char*)malloc((MAX_LENGTH + 10) * sizeof(char));
     int i, x = 0;
     iterable_t temp = abs(dec->exp);
     iterable_t temp2;
+
     if (temp != 0) {
         temp2 = (iterable_t)floor(log10((double)temp) + 1);
     } else {
         temp2 = 1;
     }
-    if (dec->negative){
-        string[0] = NEGATIVE;
-        x++;
-    }
+
     for (i = 0; i < MAX_LENGTH; i++) {
         if (i == N_DIGITS) {
             string[i + x] = PERIOD;  // .
             x++;
         }
-        string[i + x] = dec->digits[i] + '0';
-        //} else {
-        //
-        //    string[i + x] = -(dec->digits[i]) + '0';
-        //}
+
+        if (dec->digits[i] >= 0) {
+            string[i + x] = dec->digits[i] + ZERO;
+        } else {
+            string[i] = NEGATIVE;
+            x++;
+            string[i + x] = -(dec->digits[i]) + ZERO;
+        }
     }
 
     string[MAX_LENGTH + x] = CAPITAL_E;
     x++;
+
     if (temp != 0) {
         if (dec->exp < 0) {
             string[MAX_LENGTH + x] = NEGATIVE;
@@ -1256,7 +1290,7 @@ static char* _dec_2_str(const _cydecimal_ptr dec) {
         }
 
         for (i = 0; i < temp2; i++) {
-            string[MAX_LENGTH + x + i] = (temp % 10) + '0';
+            string[MAX_LENGTH + x + i] = (temp % 10) + ZERO;
             temp = (iterable_t)(temp*0.1);
         }
 
@@ -1311,9 +1345,6 @@ static inline bool _true_greater_than(_cydecimal_ptr first, _cydecimal_ptr secon
 
 static inline bool _eq_digits(const _cydecimal_ptr first, const _cydecimal_ptr second){
     iterable_t i;
-    if (first->negative != second->negative){
-        return false;
-    }
     for (i = 0; i < MAX_LENGTH; i++) {
         if (first->digits[i] != second->digits[i]) {
             return false;
@@ -1374,8 +1405,8 @@ static inline bool _true_less_than(_cydecimal_ptr first, _cydecimal_ptr second){
     return _less_than_digits(first, second);
 }
 
-static inline exponent_t _n_precision(const _cydecimal_ptr first){
-    exponent_t i;
+static inline iterable_t _n_precision(const _cydecimal_ptr first){
+    iterable_t i;
     for (i = MAX_INDICE; i >= N_PRECISION_I; i--) {
         if (first->digits[i] != 0) {
             return i - N_PRECISION_I;
@@ -1441,554 +1472,30 @@ static inline struct _cydecimal _empty_decimal(){
 }
 
 static inline struct _cydecimal _abs_dec(struct _cydecimal first){
+    if (!first.negative){
+        return first;
+    }
     first.negative = false;
+    iterable_t i;
+    for (i=0;i<MAX_LENGTH;i++){
+        if (first.digits[i]!=0){
+            first.digits[i] = -first.digits[i];
+            break;
+        }
+    }
     return first;
 }
 
 static inline void _negate(_cydecimal_ptr first){
     first->negative = !(first->negative);
-}
-    
-
-
-static struct _cydecimal _square_decimal(const _cydecimal_ptr first) {
-    exponent_t i, j, place_val=0;
-    const bool negate = first->negative ^ first->negative;
-    unsigned char overflow, x, y;
-    struct _cydecimal result = _empty_decimal();
-    
-    _normalize_digits(first, true);
-
-    result.exp = first->exp + first->exp;
-    result.negative = negate;
-
-    for (i = N_DIGITS_I; i > -1; i--) {
-        overflow = 0;
-        x = first->digits[i];
-        //if (first->negative) {
-        //    if ((x > 9)) {
-        //        x = -x;
-        //    }
-        //}
-
-        if (x != 0) {
-            for (j = N_DIGITS_I; j > -1; j--) {
-                y = first->digits[j];
-                //if (first->negative) {
-                //    if ((y > 9)) {
-                //        y = -y;
-                //    }
-                //}
-
-                if (y == 0 && overflow == 0) {
-                    continue;
-                }
-
-                overflow = (x * y) + overflow + result.digits[j - place_val];
-                if ((overflow > 9)) {
-                    result.digits[j - place_val] = overflow % 10;
-                    overflow = overflow / 10;  // Integer division for carry-over
-                } else {
-                    result.digits[j - place_val] = overflow;
-                    overflow = 0;
-                }
-            }
-
-            
-        }
-        ++place_val;  // This line adds the carry-over to the next digit
-    }
-
-
-    return result;
-}
-
-static struct _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, int number) {
-    exponent_t i, j, place_val=0;
-    const bool negate = (first->negative ^ second->negative) ^ (number < 0);
-    number = abs(number);
-    int overflow, x, y;
-    
-    struct _cydecimal result = _empty_decimal();
-    
-    _normalize_digits(first, true);
-    _normalize_digits(second, true);
-    _normalize_digits(first, false); // this is necessary for some reason???
-    _normalize_digits(second, false);
-
-    result.exp = first->exp + second->exp;
-    result.negative = negate;
-
-    for (i = N_DIGITS_I; i > -1; i--) {
-        overflow = 0;
-        x = first->digits[i];
-        //if (first->negative) {
-        //    if ((x > 9)) {
-        //        x = -x;
-        //    }
-        //}
-
-        if (x != 0) {
-            for (j = N_DIGITS_I; j > -1; j--) {
-                y = second->digits[j];
-                //if (first->negative) {
-                //    if ((y > 9)) {
-                //        y = -y;
-                //    }
-                //}
-
-                if (y == 0 && overflow == 0) {
-                    continue;
-                }
-
-                overflow = (x * y * number) + overflow + result.digits[j - place_val];
-                if ((overflow > 9)) {
-                    result.digits[j - place_val] = overflow % 10;
-                    overflow = overflow / 10;  // Integer division for carry-over
-                } else {
-                    result.digits[j - place_val] = overflow;
-                    overflow = 0;
-                }
-            }
-
-            
-        }
-        ++place_val;  // This line adds the carry-over to the next digit
-    }
-
-    return result;
-}
-
-static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) {
-    exponent_t i, j, place_val=0;
-    const bool negate = first->negative ^ second->negative;
-    char overflow, x, y, temp;
-    
-    struct _cydecimal result = _empty_decimal();
-
-    // Initialize result digits to zero
-    //memset(result.digits, 0, sizeof(result.digits));
-    
-    _normalize_digits(first, true);
-    _normalize_digits(second, true);
-    _normalize_digits(first, false); // this is necessary for some reason???
-    _normalize_digits(second, false);
-
-    if (second->exp < first->exp){ // we want to minimize the exp, so that it stays an integer
-        _left_shift_digits(first, abs(first->exp-second->exp));
-    }
-    else if (second->exp > first->exp){ // we want to minimize the exp, so that it stays an integer
-        _left_shift_digits(second, abs(second->exp-first->exp));
-    }
-    result.exp = first->exp + second->exp;
-    result.negative = negate;
-    //printf("Printing... %s %s \n", _dec_2_str(first), _dec_2_str(second));
-    for (i = N_DIGITS_I; i > -1; i--) {
-        overflow = 0;
-        x = first->digits[i];
-
-        if (x != 0) {
-            for (j = N_DIGITS_I; j > -1; j--) {
-                y = second->digits[j];
-
-                if (y == 0 && overflow == 0) {
-                    continue;
-                }
-
-                overflow = (x * y) + overflow + result.digits[j-place_val];
-                temp = overflow;
-                if ((overflow > 9)) {
-                    result.digits[j - place_val] = overflow % 10;
-                    overflow = overflow / 10;  // Integer division for carry-over
-                    //result.digits[j - place_val-1] = overflow //trying this
-                } else {
-                    result.digits[j - place_val] = overflow;
-                    overflow = 0;
-                }
-                //printf("overflow: %d temp: %d, res: %d, digits: %s, nums: %d * %d\n", overflow, temp, result.digits[j - place_val], _dec_2_str(&result), x, y);
-            }
-
-           
-        }
-        ++place_val;  // This line adds the carry-over to the next digit
-    }
-
-    return result;
-}
-
-
-static struct _cydecimal _decimal_from_double(double first) {
-    struct _cydecimal res;
-    res.negative = first < 0;
-    first = fabs(first);
-    double large = floor(first), small, temp;
-    small = first - large;  // decimal portion
-    temp = large;
     iterable_t i;
-    unsigned char large_lim = (unsigned char)(floor(log10(fabs(large))) + 1);
-
-    if ((large_lim > N_DIGITS)) {
-        large_lim = N_DIGITS;
-    }
-
-    
-    
-    res.exp = 0;
-    memset(&res.digits, 0, MAX_LENGTH);
-
-    for (i = 0; i < large_lim; i++) {
-        res.digits[N_DIGITS_I - i] = (char)fmod(temp, 10);
-        temp = floor(temp * 0.1);
-    }
-
-    temp = fabs(small);
-    i = N_PRECISION;
-    while ((temp) != ceil((temp))) {
-        temp = (temp * 10);
-        res.digits[i] = (char)fmod(floor(temp), 10);
-        i++;
-
-        if (i > MAX_INDICE) {
+    for (i=0;i<MAX_LENGTH;i++){
+        if (((first->digits)[i])!=0){
+            (first->digits)[i] = -(first->digits)[i];
             break;
         }
     }
-
-    return res;
 }
-
-
-static struct _cydecimal _norm_decimal_from_double(double first) {
-    struct _cydecimal res;
-    res.negative = first < 0;
-    first = fabs(first);
-    iterable_t i;
-    unsigned char large_lim;
-    
-    res.exp = 0;
-    
-    memset(res.digits, 0, MAX_LENGTH);
-
-    while (ceil(first) != first) {
-        res.exp--;
-        first = first * 10;
-    }
-
-    large_lim = (unsigned char)ceil(log10(first) + 1);
-
-    if (large_lim > N_DIGITS) {
-        large_lim = N_DIGITS_I;
-    }
-
-    for (i = 0; i < large_lim; i++) {
-        res.digits[N_DIGITS_I - i] = (char)fmod(first, 10);
-        first = floor(first*0.1);
-    }
-
-    return res;
-}
-
-static struct _cydecimal _norm_decimal_from_string(const char* first) {
-    struct _cydecimal res;
-    iterable_t length = strlen(first);
-    char* strtok_backup = (char*)malloc(length * sizeof(char));
-    memcpy(strtok_backup, first, length * sizeof(char));
-
-    char* small = (char*)malloc(sizeof(char)*length);
-    char* small_copy = small;
-    small = strrchr(first, PERIOD);
-    
-    small = small + 1;
-
-    char* large = (char*)malloc(sizeof(char)*length);
-    char* large_copy = large;
-    large = strtok(strtok_backup, ".");
-
-    unsigned char large_len = strlen(large), small_len = strlen(small);
-
-    char* large_norm = (char*)malloc(sizeof(char)*length);
-    char* large_norm_copy = large_norm;
-    large_norm = large;
-    free(strtok_backup);
-
-    iterable_t i;
-    
-
-    if (large_len > N_DIGITS) {
-        large_len = N_DIGITS;
-    }
-
-    if ((small_len + large_len) > N_DIGITS) {
-        i = N_DIGITS - large_len;
-
-        if (small_len > i) {
-            small_len = i;
-        }
-    }
-
-    free(large_copy);
-    large_len = large_len + small_len;
-
-    large_copy = (char*)malloc(large_len * sizeof(char));
-    memcpy(large_copy, large_norm, length * sizeof(char));
-    free(large_norm_copy);
-
-    strcat(large_copy, small);
-    free(small_copy);
-
-    res.exp = -small_len;
-
-    memcpy(res.digits, (char*)calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH * sizeof(char));
-    char x;
-    res.negative=false;
-    if (large_copy[0] == '-'){
-        res.negative=true;
-        large_copy++;
-        large_len--;
-    }
-    for (i = 0; i < large_len; i++) {
-        x = large_copy[large_len - 1 - i];
-        //if (x=='-'){ // just check for negative :)
-            //res.negative=true;
-            //res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
-            //continue;
-        //}
-        res.digits[N_DIGITS_I - i] = large_copy[large_len - 1 - i] - ZERO;
-    }
-
-    free(large_copy);
-
-    return res;
-}
-
-static struct _cydecimal _decimal_from_string(const char* first) {  // TODO: FIX THIS FUNCTION AND ABOVE, MEMORY ISSUES
-    struct _cydecimal res;
-    iterable_t length = strlen(first);
-    res.exp = 0;
-
-
-    char* strtok_backup = (char*)malloc(length * sizeof(char));
-    memcpy(strtok_backup, first, length * sizeof(char));
-
-    
-    char* small = (char*)malloc(sizeof(char)*length);
-    char* small_copy = small;
-    small = strrchr(first, PERIOD);
-    small++;
-
-
-    char* large = (char*)malloc(sizeof(char)*length);
-    char* large_copy = large;
-    large = strtok(strtok_backup, ".");
-
-
-    free(strtok_backup);
-
-    iterable_t i;
-    unsigned char large_len = strlen(large), small_len = strlen(small);
-
-    memcpy(&res.digits, (char*)calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH * sizeof(char));
-    res.negative=false;
-    if (large[0]=='-'){
-        large++;
-        res.negative=true;
-        large_len--;
-    }
-    for (i = 0; i < large_len; i++) {
-        //if (x=='-'){
-        //    res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
-        //    continue;
-        //};
-        res.digits[N_DIGITS_I - i] = large[large_len - 1 - i] - ZERO;
-    }
-
-    free(large_copy);
-    for (i = 0; i < small_len; i++) {
-        res.digits[N_DIGITS + i] = small[i] - ZERO;
-    }
-
-    free(small_copy);
-    return res;
-}
-
-static struct _cydecimal _decimal_from_int(int first) {
-    struct _cydecimal res;
-    res.negative = first < 0;
-    res.exp = 0;
-    iterable_t i;
-    first = abs(first);
-    iterable_t large_lim = (iterable_t)floor(log10(first) + 1);
-
-
-    memcpy(&res.digits, calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH);
-    
-    // test: 8204.172
-    for (i=0;i<large_lim;i++){
-        res.digits[N_DIGITS_I - i] = first % 10;
-        first = first/10;
-    };
-    return res;
-}
-
-static struct _cydecimal _norm_decimal_from_int(int first) {
-    iterable_t i;
-    struct _cydecimal res;
-    res.negative = first < 0;
-    res.exp = 0;
-    first = abs(first);
-    iterable_t large_lim = (iterable_t)floor(log10(first) + 1);
-
-
-    memcpy(&res.digits, calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH);
-    
-    // test: 8204.172
-    for (i=0;i<large_lim;i++){
-        res.digits[N_DIGITS_I - i] = first % 10;
-        first = first/10;
-    };
-    _normalize_digits(&res, false);
-    return res;
-}
-
-static struct _cydecimal _add_decimals();
-
-static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cydecimal second) {
-    exponent_t i;
-    char x, y, res=0;
-    bool small = false, negate = false, both=(first.negative && second.negative);
-    struct _cydecimal temp;
-    if (first.exp > second.exp){  // bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
-        _left_shift_digits(&second, first.exp-second.exp);  // bring up value
-    }
-    else if (second.exp > first.exp){
-        _left_shift_digits(&first, second.exp-first.exp);  // bring up value
-        //temp = second;
-        //second = first;
-        //first = temp;  // swap
-        //negate = true;
-    }
-    if (_less_than_digits(&first, &second) && (!both)){
-        temp = second;
-        second = first;
-        first = temp;  // swap
-        negate = true;
-    }
-    else if (_eq_digits(&first, &second)){
-        return _empty_decimal();
-    };
-
-    if ((second.negative) && (!first.negative)){  // second is negative, first is positive, add values instead
-        _negate(&second); // used to be abs_dec
-        first = _add_decimals(first, second);
-        if (negate){
-            _negate(&first);
-        }
-        return first;  // more efficient
-    }
-    else if (first.negative && (!second.negative)){ // first is negative, second is positive -> add and returns negated value
-        //second = _abs_dec(second);
-        _negate(&first); // used to be abs_dec
-        first = _add_decimals(first, second);
-        _negate(&first);
-        
-        return first;
-    }
-    else if(both){
-        _negate(&second);
-        first = _add_decimals(first, second);
-        _negate(&first);
-        return first;
-    }
-
-    //printf("Subtract called!\n");
-    //printf("%s %s %d %d testing lmao\n", _dec_2_str(&first), _dec_2_str(&second), first.negative, second.negative);
-    for (i = MAX_INDICE; i > -1; i--){
-        y = second.digits[i];
-        x = first.digits[i];
-        
-        if ((res == 1) || ((x!=0) || (y!=0))) {
-            x = x - res;
-            y = y;
-
-            small = x < y;
-            if (small){
-                x+=10;
-            };
-            res = (x) - y;
-
-            if (res > 9) {
-                res = ((res) % 10);
-            } else {
-                res = res;
-            }
-
-            // if (negate) {
-            //     if (res != 0) {
-            //         index = i;
-            //     };
-            // };
-
-            first.digits[i] = res;  // always positive
-
-            res = small;
-        }
-    }
-
-    if (negate) {
-        first.negative = true;
-    }
-    return first;
-}
-
-static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second) {
-    iterable_t i;
-    
-    if (first.exp > second.exp) {
-        _left_shift_digits(&second, first.exp - second.exp);
-    } else if (second.exp > first.exp) {
-        _left_shift_digits(&first, second.exp - first.exp);
-    }
-    
-    if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
-        if (second.negative){
-            _negate(&second);
-        }
-        else{
-            _negate(&first);
-        }
-        return _subtract_decimals(first, second);
-    }
-    else if (first.negative && second.negative){  // both are negative, add their absolute and returns its negative.
-
-        first = _abs_dec(first);
-        second = _abs_dec(second);
-
-        first = (_add_decimals(first, second));
-        _negate(&first);
-        return first;
-    }
-
-    char overflow = 0, res = 0, z, y;
-    
-    for (i = MAX_LENGTH; i > 0; i--) {
-        y = second.digits[i-1];
-        z = first.digits[i-1];
-
-        if ((overflow != 0) || ((z!=0) || (y!=0))) {
-            res = z + y + overflow;
-            overflow = res;
-
-            if (overflow > 9) {
-                overflow = overflow % 10;
-            }
-
-            first.digits[i-1] = overflow;
-            overflow = (char)((res - overflow) * 0.1);
-        }
-    }
-
-    return first;
-}
-
     
 #ifdef _OPENMP
 #include <omp.h>
@@ -2252,11 +1759,23 @@ static const char *__pyx_filename;
 /* #### Code section: filename_table ### */
 
 static const char *__pyx_f[] = {
-  "tests\\\\cynum.pxd",
+  "tests\\\\precision_mandelbrot.pyx",
   "<stringsource>",
-  "tests\\\\cynum.pyx",
+  "tests\\\\cynum.pxd",
 };
 /* #### Code section: utility_code_proto_before_types ### */
+/* NoFastGil.proto */
+#define __Pyx_PyGILState_Ensure PyGILState_Ensure
+#define __Pyx_PyGILState_Release PyGILState_Release
+#define __Pyx_FastGIL_Remember()
+#define __Pyx_FastGIL_Forget()
+#define __Pyx_FastGilFuncInit()
+
+/* ForceInitThreads.proto */
+#ifndef __PYX_FORCE_INIT_THREADS
+  #define __PYX_FORCE_INIT_THREADS 0
+#endif
+
 /* #### Code section: numeric_typedefs ### */
 /* #### Code section: complex_type_declarations ### */
 /* #### Code section: type_declarations ### */
@@ -2531,100 +2050,25 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
         __Pyx__ArgTypeTest(obj, type, name, exact))
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact);
 
-/* decode_c_string_utf16.proto */
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = 0;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+/* ListAppend.proto */
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
+        Py_INCREF(x);
+        PyList_SET_ITEM(list, len, x);
+        __Pyx_SET_SIZE(list, len + 1);
+        return 0;
+    }
+    return PyList_Append(list, x);
 }
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16LE(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = -1;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
-}
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16BE(const char *s, Py_ssize_t size, const char *errors) {
-    int byteorder = 1;
-    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
-}
-
-/* decode_c_string.proto */
-static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
-         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
-         const char* encoding, const char* errors,
-         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
-
-/* GetItemInt.proto */
-#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
-    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
-    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) :\
-    (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) :\
-               __Pyx_GetItemInt_Generic(o, to_py_func(i))))
-#define __Pyx_GetItemInt_List(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
-    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
-    __Pyx_GetItemInt_List_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
-    (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck);
-#define __Pyx_GetItemInt_Tuple(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
-    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
-    __Pyx_GetItemInt_Tuple_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
-    (PyErr_SetString(PyExc_IndexError, "tuple index out of range"), (PyObject*)NULL))
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck);
-static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                                     int is_list, int wraparound, int boundscheck);
-
-/* PyFunctionFastCall.proto */
-#if CYTHON_FAST_PYCALL
-#if !CYTHON_VECTORCALL
-#define __Pyx_PyFunction_FastCall(func, args, nargs)\
-    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs);
-#endif
-#define __Pyx_BUILD_ASSERT_EXPR(cond)\
-    (sizeof(char [1 - 2*!(cond)]) - 1)
-#ifndef Py_MEMBER_SIZE
-#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
-#endif
-#if !CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03080000
-  #include "frameobject.h"
-#if PY_VERSION_HEX >= 0x030b00a6
-  #ifndef Py_BUILD_CORE
-    #define Py_BUILD_CORE 1
-  #endif
-  #include "internal/pycore_frame.h"
-#endif
-  #define __Pxy_PyFrame_Initialize_Offsets()
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
 #else
-  static size_t __pyx_pyframe_localsplus_offset = 0;
-  #include "frameobject.h"
-  #define __Pxy_PyFrame_Initialize_Offsets()\
-    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)),\
-     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
-  #define __Pyx_PyFrame_GetLocalsplus(frame)\
-    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
-#endif
-#endif
+#define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
 #endif
 
-/* PyObjectCallMethO.proto */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg);
-#endif
-
-/* PyObjectFastCall.proto */
-#define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs);
-
-/* SliceObject.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(
-        PyObject* obj, Py_ssize_t cstart, Py_ssize_t cstop,
-        PyObject** py_start, PyObject** py_stop, PyObject** py_slice,
-        int has_cstart, int has_cstop, int wraparound);
-
-/* RaiseUnexpectedTypeError.proto */
-static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj);
+/* ErrOccurredWithGIL.proto */
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void);
 
 /* PyDictVersioning.proto */
 #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_TYPE_SLOTS
@@ -2685,6 +2129,15 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #define __Pyx_HAS_GCC_DIAGNOSTIC
 #endif
 
+/* RaiseUnexpectedTypeError.proto */
+static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj);
+
+/* CIntToPy.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyInt_From_unsigned_int(unsigned int value);
+
+/* CIntFromPy.proto */
+static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *);
+
 /* CIntFromPy.proto */
 static CYTHON_INLINE exponent_t __Pyx_PyInt_As_exponent_t(PyObject *);
 
@@ -2697,9 +2150,6 @@ static CYTHON_INLINE char __Pyx_PyInt_As_char(PyObject *);
 /* CIntFromPy.proto */
 static CYTHON_INLINE iterable_t __Pyx_PyInt_As_iterable_t(PyObject *);
 
-/* CIntFromPy.proto */
-static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *);
-
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_iterable_t(iterable_t value);
 
@@ -2708,9 +2158,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_long(long value);
 
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_exponent_t(exponent_t value);
-
-/* CIntToPy.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_unsigned_char(unsigned char value);
 
 /* FormatTypeName.proto */
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2734,6 +2181,9 @@ static int __Pyx_check_binary_version(void);
 /* FunctionExport.proto */
 static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig);
 
+/* FunctionImport.proto */
+static int __Pyx_ImportFunction_3_0_0(PyObject *module, const char *funcname, void (**f)(void), const char *sig);
+
 /* InitStrings.proto */
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 
@@ -2748,18 +2198,17 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 /* Module declarations from "libc.stdio" */
 
 /* Module declarations from "tests.cynum" */
-static CYTHON_INLINE struct _cydecimal _norm_decimal_from_double(double const ); /*proto*/
-static CYTHON_INLINE struct _cydecimal _decimal_from_string(char const *); /*proto*/
-static CYTHON_INLINE struct _cydecimal _norm_decimal_from_string(char const *); /*proto*/
-static CYTHON_INLINE struct _cydecimal _decimal_from_int(int); /*proto*/
-static CYTHON_INLINE struct _cydecimal _norm_decimal_from_int(int); /*proto*/
-static CYTHON_INLINE struct _cydecimal _decimal_from_double(double const ); /*proto*/
-static CYTHON_INLINE struct _cydecimal _subtract_decimals(struct _cydecimal, struct _cydecimal); /*proto*/
-static CYTHON_INLINE struct _cydecimal _add_decimals(struct _cydecimal, struct _cydecimal); /*proto*/
-static CYTHON_INLINE struct _cydecimal _mult_decimals(_cydecimal_ptr const , _cydecimal_ptr const ); /*proto*/
-static CYTHON_INLINE struct _cydecimal _square_decimal(_cydecimal_ptr const ); /*proto*/
-static CYTHON_INLINE struct _cydecimal _mult_decimal_decimal_digit(_cydecimal_ptr const , _cydecimal_ptr const , int const ); /*proto*/
-static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__cydecimal_ptr_2_cydecimal(_cydecimal_ptr); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__norm_decimal_from_double)(double const ); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__decimal_from_string)(char const *); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__norm_decimal_from_string)(char const *); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__decimal_from_int)(int); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__norm_decimal_from_int)(int); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__decimal_from_double)(double const ); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__subtract_decimals)(struct _cydecimal, struct _cydecimal); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__add_decimals)(struct _cydecimal, struct _cydecimal); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__mult_decimals)(_cydecimal_ptr const , _cydecimal_ptr const ); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__square_decimal)(_cydecimal_ptr const ); /*proto*/
+static CYTHON_INLINE struct _cydecimal (*__pyx_f_5tests_5cynum__mult_decimal_decimal_digit)(_cydecimal_ptr const , _cydecimal_ptr const , unsigned int const ); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_string(char const *, int __pyx_skip_dispatch); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_string(char const *, int __pyx_skip_dispatch); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_double(double const , int __pyx_skip_dispatch); /*proto*/
@@ -2792,17 +2241,25 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_mult_decimal_decimal_digit(
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_empty_decimal(int __pyx_skip_dispatch); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum__format_decimal(struct _cydecimal const ); /*proto*/
 static CYTHON_INLINE void __pyx_f_5tests_5cynum_test(int __pyx_skip_dispatch); /*proto*/
+
+/* Module declarations from "tests.precision_mandelbrot" */
+static struct _cydecimal __pyx_v_5tests_20precision_mandelbrot_FOUR;
+static unsigned int __pyx_f_5tests_20precision_mandelbrot_mandelbrot(struct _cydecimal const , struct _cydecimal const , unsigned int const ); /*proto*/
+static CYTHON_INLINE void __pyx_f_5tests_20precision_mandelbrot_linspace(_cydecimal_ptr, unsigned int const , _cydecimal_ptr const , struct _cydecimal, struct _cydecimal); /*proto*/
+static PyObject *__pyx_f_5tests_20precision_mandelbrot_ui_2_list(unsigned int const **, unsigned int const , unsigned int const ); /*proto*/
+static unsigned int **__pyx_f_5tests_20precision_mandelbrot_main1(unsigned int **, _cydecimal_ptr const , _cydecimal_ptr const , unsigned int const , unsigned int const , unsigned int const ); /*proto*/
 static int __Pyx_carray_from_py_char(PyObject *, char *, Py_ssize_t); /*proto*/
 static struct _cydecimal __pyx_convert__from_py_struct___cydecimal(PyObject *); /*proto*/
 /* #### Code section: typeinfo ### */
 /* #### Code section: before_global_var ### */
-#define __Pyx_MODULE_NAME "tests.cynum"
-extern int __pyx_module_is_main_tests__cynum;
-int __pyx_module_is_main_tests__cynum = 0;
+#define __Pyx_MODULE_NAME "tests.precision_mandelbrot"
+extern int __pyx_module_is_main_tests__precision_mandelbrot;
+int __pyx_module_is_main_tests__precision_mandelbrot = 0;
 
-/* Implementation of "tests.cynum" */
+/* Implementation of "tests.precision_mandelbrot" */
 /* #### Code section: global_var ### */
 static PyObject *__pyx_builtin_range;
+static PyObject *__pyx_builtin_print;
 static PyObject *__pyx_builtin_TypeError;
 static PyObject *__pyx_builtin_OverflowError;
 static PyObject *__pyx_builtin_enumerate;
@@ -2810,12 +2267,9 @@ static PyObject *__pyx_builtin_IndexError;
 static PyObject *__pyx_builtin_KeyError;
 static PyObject *__pyx_builtin_ValueError;
 /* #### Code section: string_decls ### */
-static const char __pyx_k_0[] = "0";
-static const char __pyx_k_E[] = "E";
 static const char __pyx_k_t[] = "t";
 static const char __pyx_k_x[] = "x";
-static const char __pyx_k__4[] = "-";
-static const char __pyx_k__6[] = "?";
+static const char __pyx_k__8[] = "?";
 static const char __pyx_k_exp[] = "exp";
 static const char __pyx_k_num[] = "num";
 static const char __pyx_k_res[] = "res";
@@ -2824,10 +2278,9 @@ static const char __pyx_k_mode[] = "mode";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_first[] = "first";
-static const char __pyx_k_index[] = "index";
+static const char __pyx_k_print[] = "print";
 static const char __pyx_k_range[] = "range";
 static const char __pyx_k_digits[] = "digits";
-static const char __pyx_k_lstrip[] = "lstrip";
 static const char __pyx_k_second[] = "second";
 static const char __pyx_k_KeyError[] = "KeyError";
 static const char __pyx_k_negative[] = "negative";
@@ -2835,8 +2288,12 @@ static const char __pyx_k_TypeError[] = "TypeError";
 static const char __pyx_k_enumerate[] = "enumerate";
 static const char __pyx_k_IndexError[] = "IndexError";
 static const char __pyx_k_ValueError[] = "ValueError";
+static const char __pyx_k_in_function[] = "in function";
 static const char __pyx_k_OverflowError[] = "OverflowError";
+static const char __pyx_k_done_allocation[] = "done allocation";
+static const char __pyx_k_done_allocation1[] = "done allocation1";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
+static const char __pyx_k_started_allocation[] = "started allocation";
 static const char __pyx_k_No_value_specified_for_struct_at[] = "No value specified for struct attribute 'digits'";
 static const char __pyx_k_No_value_specified_for_struct_at_2[] = "No value specified for struct attribute 'exp'";
 static const char __pyx_k_No_value_specified_for_struct_at_3[] = "No value specified for struct attribute 'negative'";
@@ -2909,8 +2366,8 @@ typedef struct {
   #endif
   #if CYTHON_USE_MODULE_STATE
   #endif
-  PyObject *__pyx_kp_u_0;
-  PyObject *__pyx_n_u_E;
+  #if CYTHON_USE_MODULE_STATE
+  #endif
   PyObject *__pyx_n_s_IndexError;
   PyObject *__pyx_n_s_KeyError;
   PyObject *__pyx_kp_s_No_value_specified_for_struct_at;
@@ -2919,34 +2376,38 @@ typedef struct {
   PyObject *__pyx_n_s_OverflowError;
   PyObject *__pyx_n_s_TypeError;
   PyObject *__pyx_n_s_ValueError;
-  PyObject *__pyx_kp_u__4;
-  PyObject *__pyx_n_s__6;
+  PyObject *__pyx_n_s__8;
   PyObject *__pyx_n_s_cline_in_traceback;
   PyObject *__pyx_n_s_digits;
   PyObject *__pyx_n_u_digits;
+  PyObject *__pyx_kp_u_done_allocation;
+  PyObject *__pyx_kp_u_done_allocation1;
   PyObject *__pyx_n_s_enumerate;
   PyObject *__pyx_n_s_exp;
   PyObject *__pyx_n_u_exp;
   PyObject *__pyx_n_s_first;
-  PyObject *__pyx_n_s_index;
-  PyObject *__pyx_n_s_lstrip;
+  PyObject *__pyx_kp_u_in_function;
   PyObject *__pyx_n_s_main;
   PyObject *__pyx_n_s_mode;
   PyObject *__pyx_n_s_name;
   PyObject *__pyx_n_s_negative;
   PyObject *__pyx_n_u_negative;
   PyObject *__pyx_n_s_num;
+  PyObject *__pyx_n_s_print;
   PyObject *__pyx_n_s_range;
   PyObject *__pyx_n_s_res;
   PyObject *__pyx_n_s_second;
+  PyObject *__pyx_kp_u_started_allocation;
   PyObject *__pyx_n_s_t;
   PyObject *__pyx_n_s_test;
   PyObject *__pyx_n_s_x;
-  PyObject *__pyx_int_1;
   PyObject *__pyx_tuple_;
-  PyObject *__pyx_slice__5;
   PyObject *__pyx_tuple__2;
   PyObject *__pyx_tuple__3;
+  PyObject *__pyx_tuple__4;
+  PyObject *__pyx_tuple__5;
+  PyObject *__pyx_tuple__6;
+  PyObject *__pyx_tuple__7;
 } __pyx_mstate;
 
 #if CYTHON_USE_MODULE_STATE
@@ -2989,8 +2450,6 @@ static int __pyx_m_clear(PyObject *m) {
   #ifdef __Pyx_FusedFunction_USED
   Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_CLEAR(clear_module_state->__pyx_kp_u_0);
-  Py_CLEAR(clear_module_state->__pyx_n_u_E);
   Py_CLEAR(clear_module_state->__pyx_n_s_IndexError);
   Py_CLEAR(clear_module_state->__pyx_n_s_KeyError);
   Py_CLEAR(clear_module_state->__pyx_kp_s_No_value_specified_for_struct_at);
@@ -2999,34 +2458,38 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_OverflowError);
   Py_CLEAR(clear_module_state->__pyx_n_s_TypeError);
   Py_CLEAR(clear_module_state->__pyx_n_s_ValueError);
-  Py_CLEAR(clear_module_state->__pyx_kp_u__4);
-  Py_CLEAR(clear_module_state->__pyx_n_s__6);
+  Py_CLEAR(clear_module_state->__pyx_n_s__8);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
   Py_CLEAR(clear_module_state->__pyx_n_s_digits);
   Py_CLEAR(clear_module_state->__pyx_n_u_digits);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_done_allocation);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_done_allocation1);
   Py_CLEAR(clear_module_state->__pyx_n_s_enumerate);
   Py_CLEAR(clear_module_state->__pyx_n_s_exp);
   Py_CLEAR(clear_module_state->__pyx_n_u_exp);
   Py_CLEAR(clear_module_state->__pyx_n_s_first);
-  Py_CLEAR(clear_module_state->__pyx_n_s_index);
-  Py_CLEAR(clear_module_state->__pyx_n_s_lstrip);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_in_function);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
   Py_CLEAR(clear_module_state->__pyx_n_s_mode);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
   Py_CLEAR(clear_module_state->__pyx_n_s_negative);
   Py_CLEAR(clear_module_state->__pyx_n_u_negative);
   Py_CLEAR(clear_module_state->__pyx_n_s_num);
+  Py_CLEAR(clear_module_state->__pyx_n_s_print);
   Py_CLEAR(clear_module_state->__pyx_n_s_range);
   Py_CLEAR(clear_module_state->__pyx_n_s_res);
   Py_CLEAR(clear_module_state->__pyx_n_s_second);
+  Py_CLEAR(clear_module_state->__pyx_kp_u_started_allocation);
   Py_CLEAR(clear_module_state->__pyx_n_s_t);
   Py_CLEAR(clear_module_state->__pyx_n_s_test);
   Py_CLEAR(clear_module_state->__pyx_n_s_x);
-  Py_CLEAR(clear_module_state->__pyx_int_1);
   Py_CLEAR(clear_module_state->__pyx_tuple_);
-  Py_CLEAR(clear_module_state->__pyx_slice__5);
   Py_CLEAR(clear_module_state->__pyx_tuple__2);
   Py_CLEAR(clear_module_state->__pyx_tuple__3);
+  Py_CLEAR(clear_module_state->__pyx_tuple__4);
+  Py_CLEAR(clear_module_state->__pyx_tuple__5);
+  Py_CLEAR(clear_module_state->__pyx_tuple__6);
+  Py_CLEAR(clear_module_state->__pyx_tuple__7);
   return 0;
 }
 #endif
@@ -3047,8 +2510,6 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   #ifdef __Pyx_FusedFunction_USED
   Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
   #endif
-  Py_VISIT(traverse_module_state->__pyx_kp_u_0);
-  Py_VISIT(traverse_module_state->__pyx_n_u_E);
   Py_VISIT(traverse_module_state->__pyx_n_s_IndexError);
   Py_VISIT(traverse_module_state->__pyx_n_s_KeyError);
   Py_VISIT(traverse_module_state->__pyx_kp_s_No_value_specified_for_struct_at);
@@ -3057,34 +2518,38 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_OverflowError);
   Py_VISIT(traverse_module_state->__pyx_n_s_TypeError);
   Py_VISIT(traverse_module_state->__pyx_n_s_ValueError);
-  Py_VISIT(traverse_module_state->__pyx_kp_u__4);
-  Py_VISIT(traverse_module_state->__pyx_n_s__6);
+  Py_VISIT(traverse_module_state->__pyx_n_s__8);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
   Py_VISIT(traverse_module_state->__pyx_n_s_digits);
   Py_VISIT(traverse_module_state->__pyx_n_u_digits);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_done_allocation);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_done_allocation1);
   Py_VISIT(traverse_module_state->__pyx_n_s_enumerate);
   Py_VISIT(traverse_module_state->__pyx_n_s_exp);
   Py_VISIT(traverse_module_state->__pyx_n_u_exp);
   Py_VISIT(traverse_module_state->__pyx_n_s_first);
-  Py_VISIT(traverse_module_state->__pyx_n_s_index);
-  Py_VISIT(traverse_module_state->__pyx_n_s_lstrip);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_in_function);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
   Py_VISIT(traverse_module_state->__pyx_n_s_mode);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
   Py_VISIT(traverse_module_state->__pyx_n_s_negative);
   Py_VISIT(traverse_module_state->__pyx_n_u_negative);
   Py_VISIT(traverse_module_state->__pyx_n_s_num);
+  Py_VISIT(traverse_module_state->__pyx_n_s_print);
   Py_VISIT(traverse_module_state->__pyx_n_s_range);
   Py_VISIT(traverse_module_state->__pyx_n_s_res);
   Py_VISIT(traverse_module_state->__pyx_n_s_second);
+  Py_VISIT(traverse_module_state->__pyx_kp_u_started_allocation);
   Py_VISIT(traverse_module_state->__pyx_n_s_t);
   Py_VISIT(traverse_module_state->__pyx_n_s_test);
   Py_VISIT(traverse_module_state->__pyx_n_s_x);
-  Py_VISIT(traverse_module_state->__pyx_int_1);
   Py_VISIT(traverse_module_state->__pyx_tuple_);
-  Py_VISIT(traverse_module_state->__pyx_slice__5);
   Py_VISIT(traverse_module_state->__pyx_tuple__2);
   Py_VISIT(traverse_module_state->__pyx_tuple__3);
+  Py_VISIT(traverse_module_state->__pyx_tuple__4);
+  Py_VISIT(traverse_module_state->__pyx_tuple__5);
+  Py_VISIT(traverse_module_state->__pyx_tuple__6);
+  Py_VISIT(traverse_module_state->__pyx_tuple__7);
   return 0;
 }
 #endif
@@ -3123,8 +2588,8 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #endif
 #if CYTHON_USE_MODULE_STATE
 #endif
-#define __pyx_kp_u_0 __pyx_mstate_global->__pyx_kp_u_0
-#define __pyx_n_u_E __pyx_mstate_global->__pyx_n_u_E
+#if CYTHON_USE_MODULE_STATE
+#endif
 #define __pyx_n_s_IndexError __pyx_mstate_global->__pyx_n_s_IndexError
 #define __pyx_n_s_KeyError __pyx_mstate_global->__pyx_n_s_KeyError
 #define __pyx_kp_s_No_value_specified_for_struct_at __pyx_mstate_global->__pyx_kp_s_No_value_specified_for_struct_at
@@ -3133,34 +2598,38 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_OverflowError __pyx_mstate_global->__pyx_n_s_OverflowError
 #define __pyx_n_s_TypeError __pyx_mstate_global->__pyx_n_s_TypeError
 #define __pyx_n_s_ValueError __pyx_mstate_global->__pyx_n_s_ValueError
-#define __pyx_kp_u__4 __pyx_mstate_global->__pyx_kp_u__4
-#define __pyx_n_s__6 __pyx_mstate_global->__pyx_n_s__6
+#define __pyx_n_s__8 __pyx_mstate_global->__pyx_n_s__8
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
 #define __pyx_n_s_digits __pyx_mstate_global->__pyx_n_s_digits
 #define __pyx_n_u_digits __pyx_mstate_global->__pyx_n_u_digits
+#define __pyx_kp_u_done_allocation __pyx_mstate_global->__pyx_kp_u_done_allocation
+#define __pyx_kp_u_done_allocation1 __pyx_mstate_global->__pyx_kp_u_done_allocation1
 #define __pyx_n_s_enumerate __pyx_mstate_global->__pyx_n_s_enumerate
 #define __pyx_n_s_exp __pyx_mstate_global->__pyx_n_s_exp
 #define __pyx_n_u_exp __pyx_mstate_global->__pyx_n_u_exp
 #define __pyx_n_s_first __pyx_mstate_global->__pyx_n_s_first
-#define __pyx_n_s_index __pyx_mstate_global->__pyx_n_s_index
-#define __pyx_n_s_lstrip __pyx_mstate_global->__pyx_n_s_lstrip
+#define __pyx_kp_u_in_function __pyx_mstate_global->__pyx_kp_u_in_function
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
 #define __pyx_n_s_mode __pyx_mstate_global->__pyx_n_s_mode
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
 #define __pyx_n_s_negative __pyx_mstate_global->__pyx_n_s_negative
 #define __pyx_n_u_negative __pyx_mstate_global->__pyx_n_u_negative
 #define __pyx_n_s_num __pyx_mstate_global->__pyx_n_s_num
+#define __pyx_n_s_print __pyx_mstate_global->__pyx_n_s_print
 #define __pyx_n_s_range __pyx_mstate_global->__pyx_n_s_range
 #define __pyx_n_s_res __pyx_mstate_global->__pyx_n_s_res
 #define __pyx_n_s_second __pyx_mstate_global->__pyx_n_s_second
+#define __pyx_kp_u_started_allocation __pyx_mstate_global->__pyx_kp_u_started_allocation
 #define __pyx_n_s_t __pyx_mstate_global->__pyx_n_s_t
 #define __pyx_n_s_test __pyx_mstate_global->__pyx_n_s_test
 #define __pyx_n_s_x __pyx_mstate_global->__pyx_n_s_x
-#define __pyx_int_1 __pyx_mstate_global->__pyx_int_1
 #define __pyx_tuple_ __pyx_mstate_global->__pyx_tuple_
-#define __pyx_slice__5 __pyx_mstate_global->__pyx_slice__5
 #define __pyx_tuple__2 __pyx_mstate_global->__pyx_tuple__2
 #define __pyx_tuple__3 __pyx_mstate_global->__pyx_tuple__3
+#define __pyx_tuple__4 __pyx_mstate_global->__pyx_tuple__4
+#define __pyx_tuple__5 __pyx_mstate_global->__pyx_tuple__5
+#define __pyx_tuple__6 __pyx_mstate_global->__pyx_tuple__6
+#define __pyx_tuple__7 __pyx_mstate_global->__pyx_tuple__7
 /* #### Code section: module_code ### */
 
 /* "carray.from_py":79
@@ -3885,8 +3354,8 @@ static struct _cydecimal __pyx_convert__from_py_struct___cydecimal(PyObject *__p
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":404
- * cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const int number) noexcept nogil
+/* "cynum.pxd":420
+ * cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const unsigned int number) noexcept nogil
  * 
  * cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
  *     return dereference(first)
@@ -3896,7 +3365,7 @@ static struct _cydecimal __pyx_convert__from_py_struct___cydecimal(PyObject *__p
 static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__cydecimal_ptr_2_cydecimal(_cydecimal_ptr __pyx_v_first) {
   struct _cydecimal __pyx_r;
 
-  /* "tests/cynum.pxd":405
+  /* "cynum.pxd":421
  * 
  * cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:
  *     return dereference(first)             # <<<<<<<<<<<<<<
@@ -3906,8 +3375,8 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__cydecimal_ptr_2_cy
   __pyx_r = (*__pyx_v_first);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":404
- * cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const int number) noexcept nogil
+  /* "cynum.pxd":420
+ * cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const unsigned int number) noexcept nogil
  * 
  * cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
  *     return dereference(first)
@@ -3919,7 +3388,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__cydecimal_ptr_2_cy
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":407
+/* "cynum.pxd":423
  *     return dereference(first)
  * 
  * cdef inline _cydecimal _decimal_cy(const char[MAX_LENGTH]* digits, const exponent_t exp, const bool negative) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -3931,7 +3400,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
   struct _cydecimal __pyx_v_res;
   struct _cydecimal __pyx_r;
 
-  /* "tests/cynum.pxd":409
+  /* "cynum.pxd":425
  * cdef inline _cydecimal _decimal_cy(const char[MAX_LENGTH]* digits, const exponent_t exp, const bool negative) noexcept nogil:
  *     cdef _cydecimal res
  *     memcpy(&res.digits, digits, sizeof(digits))             # <<<<<<<<<<<<<<
@@ -3940,7 +3409,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
  */
   (void)(memcpy((&__pyx_v_res.digits), __pyx_v_digits, (sizeof(__pyx_v_digits))));
 
-  /* "tests/cynum.pxd":410
+  /* "cynum.pxd":426
  *     cdef _cydecimal res
  *     memcpy(&res.digits, digits, sizeof(digits))
  *     res.exp = exp             # <<<<<<<<<<<<<<
@@ -3949,7 +3418,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
  */
   __pyx_v_res.exp = __pyx_v_exp;
 
-  /* "tests/cynum.pxd":411
+  /* "cynum.pxd":427
  *     memcpy(&res.digits, digits, sizeof(digits))
  *     res.exp = exp
  *     res.negative = negative             # <<<<<<<<<<<<<<
@@ -3958,7 +3427,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
  */
   __pyx_v_res.negative = __pyx_v_negative;
 
-  /* "tests/cynum.pxd":412
+  /* "cynum.pxd":428
  *     res.exp = exp
  *     res.negative = negative
  *     return res             # <<<<<<<<<<<<<<
@@ -3968,7 +3437,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":407
+  /* "cynum.pxd":423
  *     return dereference(first)
  * 
  * cdef inline _cydecimal _decimal_cy(const char[MAX_LENGTH]* digits, const exponent_t exp, const bool negative) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -3981,7 +3450,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":414
+/* "cynum.pxd":430
  *     return res
  * 
  * cdef inline void _destruct_decimal_cy(_cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -3991,7 +3460,7 @@ static CYTHON_INLINE struct _cydecimal __pyx_f_5tests_5cynum__decimal_cy(char co
 
 static CYTHON_INLINE void __pyx_f_5tests_5cynum__destruct_decimal_cy(_cydecimal_ptr __pyx_v_first) {
 
-  /* "tests/cynum.pxd":415
+  /* "cynum.pxd":431
  * 
  * cdef inline void _destruct_decimal_cy(_cydecimal_ptr first) noexcept nogil:
  *     free(first.digits)             # <<<<<<<<<<<<<<
@@ -4000,7 +3469,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__destruct_decimal_cy(_cydecimal_
  */
   free(__pyx_v_first->digits);
 
-  /* "tests/cynum.pxd":414
+  /* "cynum.pxd":430
  *     return res
  * 
  * cdef inline void _destruct_decimal_cy(_cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4011,7 +3480,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__destruct_decimal_cy(_cydecimal_
   /* function exit code */
 }
 
-/* "tests/cynum.pxd":417
+/* "cynum.pxd":433
  *     free(first.digits)
  * 
  * cdef inline void _printf_dec_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4021,7 +3490,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__destruct_decimal_cy(_cydecimal_
 
 static CYTHON_INLINE void __pyx_f_5tests_5cynum__printf_dec_cy(_cydecimal_ptr const __pyx_v_dec) {
 
-  /* "tests/cynum.pxd":421
+  /* "cynum.pxd":437
  *     #cdef char* temp = data
  *     #data = _dec_2_str(dec)
  *     printf("%s\n",_dec_2_str(dec))             # <<<<<<<<<<<<<<
@@ -4030,7 +3499,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__printf_dec_cy(_cydecimal_ptr co
  */
   (void)(printf(((char const *)"%s\n"), _dec_2_str(__pyx_v_dec)));
 
-  /* "tests/cynum.pxd":417
+  /* "cynum.pxd":433
  *     free(first.digits)
  * 
  * cdef inline void _printf_dec_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4041,7 +3510,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__printf_dec_cy(_cydecimal_ptr co
   /* function exit code */
 }
 
-/* "tests/cynum.pxd":424
+/* "cynum.pxd":440
  *     #free(temp)
  * 
  * cdef inline bool _greater_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order             # <<<<<<<<<<<<<<
@@ -4057,7 +3526,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pxd":426
+  /* "cynum.pxd":442
  * cdef inline bool _greater_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
@@ -4069,7 +3538,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pxd":427
+    /* "cynum.pxd":443
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] > second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4079,7 +3548,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) > (__pyx_v_second->digits[__pyx_v_i]));
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":428
+      /* "cynum.pxd":444
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] > second.digits[i]:
  *             return True             # <<<<<<<<<<<<<<
@@ -4089,7 +3558,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
       __pyx_r = 1;
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":427
+      /* "cynum.pxd":443
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] > second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4098,7 +3567,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
  */
     }
 
-    /* "tests/cynum.pxd":429
+    /* "cynum.pxd":445
  *         if first.digits[i] > second.digits[i]:
  *             return True
  *         elif first.digits[i] < second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4108,7 +3577,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) < (__pyx_v_second->digits[__pyx_v_i]));
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":430
+      /* "cynum.pxd":446
  *             return True
  *         elif first.digits[i] < second.digits[i]:
  *             return False             # <<<<<<<<<<<<<<
@@ -4118,7 +3587,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
       __pyx_r = 0;
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":429
+      /* "cynum.pxd":445
  *         if first.digits[i] > second.digits[i]:
  *             return True
  *         elif first.digits[i] < second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4128,7 +3597,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
     }
   }
 
-  /* "tests/cynum.pxd":431
+  /* "cynum.pxd":447
  *         elif first.digits[i] < second.digits[i]:
  *             return False
  *     return False  # equal             # <<<<<<<<<<<<<<
@@ -4138,7 +3607,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
   __pyx_r = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":424
+  /* "cynum.pxd":440
  *     #free(temp)
  * 
  * cdef inline bool _greater_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order             # <<<<<<<<<<<<<<
@@ -4151,7 +3620,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":433
+/* "cynum.pxd":449
  *     return False  # equal
  * 
  * cdef inline bool _greater_than_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,             # <<<<<<<<<<<<<<
@@ -4162,7 +3631,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_digits_cy(_cydecim
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_exp_cy(_cydecimal_ptr const __pyx_v_first, _cydecimal_ptr const __pyx_v_second) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":434
+  /* "cynum.pxd":450
  * 
  * cdef inline bool _greater_than_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,
  *     return first.exp > second.exp             # <<<<<<<<<<<<<<
@@ -4172,7 +3641,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_exp_cy(_cydecimal_
   __pyx_r = (__pyx_v_first->exp > __pyx_v_second->exp);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":433
+  /* "cynum.pxd":449
  *     return False  # equal
  * 
  * cdef inline bool _greater_than_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,             # <<<<<<<<<<<<<<
@@ -4185,7 +3654,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__greater_than_exp_cy(_cydecimal_
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":436
+/* "cynum.pxd":452
  *     return first.exp > second.exp
  * 
  * cdef inline bool _true_greater_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4197,7 +3666,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   bool __pyx_r;
   int __pyx_t_1;
 
-  /* "tests/cynum.pxd":437
+  /* "cynum.pxd":453
  * 
  * cdef inline bool _true_greater_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4207,7 +3676,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   __pyx_t_1 = (__pyx_v_first->exp > __pyx_v_second->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":438
+    /* "cynum.pxd":454
  * cdef inline bool _true_greater_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4216,7 +3685,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
  */
     _left_shift_digits(__pyx_v_second, (__pyx_v_first->exp - __pyx_v_second->exp));
 
-    /* "tests/cynum.pxd":437
+    /* "cynum.pxd":453
  * 
  * cdef inline bool _true_greater_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4226,7 +3695,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pxd":439
+  /* "cynum.pxd":455
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4236,7 +3705,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   __pyx_t_1 = (__pyx_v_second->exp > __pyx_v_first->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":440
+    /* "cynum.pxd":456
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4245,7 +3714,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
  */
     _left_shift_digits(__pyx_v_first, (__pyx_v_second->exp - __pyx_v_first->exp));
 
-    /* "tests/cynum.pxd":439
+    /* "cynum.pxd":455
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4255,7 +3724,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pxd":441
+  /* "cynum.pxd":457
  *     elif second.exp > first.exp:
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value
  *     return _greater_than_digits(first, second)             # <<<<<<<<<<<<<<
@@ -4265,7 +3734,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   __pyx_r = _greater_than_digits(__pyx_v_first, __pyx_v_second);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":436
+  /* "cynum.pxd":452
  *     return first.exp > second.exp
  * 
  * cdef inline bool _true_greater_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4278,7 +3747,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_greater_than_cy(_cydecimal
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":443
+/* "cynum.pxd":459
  *     return _greater_than_digits(first, second)
  * 
  * cdef inline bool _eq_digits_cy(_cydecimal * const first,  _cydecimal * const second) noexcept nogil:  # only checks in-order             # <<<<<<<<<<<<<<
@@ -4294,7 +3763,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pxd":445
+  /* "cynum.pxd":461
  * cdef inline bool _eq_digits_cy(_cydecimal * const first,  _cydecimal * const second) noexcept nogil:  # only checks in-order
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
@@ -4306,7 +3775,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pxd":446
+    /* "cynum.pxd":462
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] == second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4316,7 +3785,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) == (__pyx_v_second->digits[__pyx_v_i]));
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":447
+      /* "cynum.pxd":463
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] == second.digits[i]:
  *             continue             # <<<<<<<<<<<<<<
@@ -4325,7 +3794,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
  */
       goto __pyx_L3_continue;
 
-      /* "tests/cynum.pxd":446
+      /* "cynum.pxd":462
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] == second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4334,7 +3803,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
  */
     }
 
-    /* "tests/cynum.pxd":449
+    /* "cynum.pxd":465
  *             continue
  *         else:
  *             return False             # <<<<<<<<<<<<<<
@@ -4348,7 +3817,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
     __pyx_L3_continue:;
   }
 
-  /* "tests/cynum.pxd":450
+  /* "cynum.pxd":466
  *         else:
  *             return False
  *     return True  # equal             # <<<<<<<<<<<<<<
@@ -4358,7 +3827,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
   __pyx_r = 1;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":443
+  /* "cynum.pxd":459
  *     return _greater_than_digits(first, second)
  * 
  * cdef inline bool _eq_digits_cy(_cydecimal * const first,  _cydecimal * const second) noexcept nogil:  # only checks in-order             # <<<<<<<<<<<<<<
@@ -4371,7 +3840,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":452
+/* "cynum.pxd":468
  *     return True  # equal
  * 
  * cdef inline bool _eq_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,             # <<<<<<<<<<<<<<
@@ -4382,7 +3851,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_digits_cy(struct _cydecimal 
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_exp_cy(_cydecimal_ptr const __pyx_v_first, _cydecimal_ptr const __pyx_v_second) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":453
+  /* "cynum.pxd":469
  * 
  * cdef inline bool _eq_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,
  *     return first.exp == second.exp             # <<<<<<<<<<<<<<
@@ -4392,7 +3861,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_exp_cy(_cydecimal_ptr const 
   __pyx_r = (__pyx_v_first->exp == __pyx_v_second->exp);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":452
+  /* "cynum.pxd":468
  *     return True  # equal
  * 
  * cdef inline bool _eq_exp_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits,             # <<<<<<<<<<<<<<
@@ -4405,7 +3874,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__eq_exp_cy(_cydecimal_ptr const 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":455
+/* "cynum.pxd":471
  *     return first.exp == second.exp
  * 
  * cdef inline bool _true_eq_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4419,7 +3888,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   bool __pyx_t_2;
   bool __pyx_t_3;
 
-  /* "tests/cynum.pxd":456
+  /* "cynum.pxd":472
  * 
  * cdef inline bool _true_eq_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4429,7 +3898,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   __pyx_t_1 = (__pyx_v_first->exp > __pyx_v_second->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":457
+    /* "cynum.pxd":473
  * cdef inline bool _true_eq_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4438,7 +3907,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
  */
     _left_shift_digits(__pyx_v_second, (__pyx_v_first->exp - __pyx_v_second->exp));
 
-    /* "tests/cynum.pxd":456
+    /* "cynum.pxd":472
  * 
  * cdef inline bool _true_eq_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4448,7 +3917,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pxd":458
+  /* "cynum.pxd":474
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4458,7 +3927,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   __pyx_t_1 = (__pyx_v_second->exp > __pyx_v_first->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":459
+    /* "cynum.pxd":475
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4467,7 +3936,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
  */
     _left_shift_digits(__pyx_v_first, (__pyx_v_second->exp - __pyx_v_first->exp));
 
-    /* "tests/cynum.pxd":458
+    /* "cynum.pxd":474
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4477,7 +3946,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pxd":461
+  /* "cynum.pxd":477
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value
  *     else:
  *         return _eq_digits(first, second)             # <<<<<<<<<<<<<<
@@ -4490,7 +3959,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pxd":462
+  /* "cynum.pxd":478
  *     else:
  *         return _eq_digits(first, second)
  *     return (first.exp == second.exp) and _eq_digits(first, second)             # <<<<<<<<<<<<<<
@@ -4509,7 +3978,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   __pyx_r = __pyx_t_2;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":455
+  /* "cynum.pxd":471
  *     return first.exp == second.exp
  * 
  * cdef inline bool _true_eq_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4522,7 +3991,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_eq_cy(_cydecimal_ptr __pyx
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":464
+/* "cynum.pxd":480
  *     return (first.exp == second.exp) and _eq_digits(first, second)
  * 
  * cdef inline bool _less_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order             # <<<<<<<<<<<<<<
@@ -4538,7 +4007,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pxd":466
+  /* "cynum.pxd":482
  * cdef inline bool _less_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
@@ -4550,7 +4019,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pxd":467
+    /* "cynum.pxd":483
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] < second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4560,7 +4029,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) < (__pyx_v_second->digits[__pyx_v_i]));
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":468
+      /* "cynum.pxd":484
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] < second.digits[i]:
  *             return True             # <<<<<<<<<<<<<<
@@ -4570,7 +4039,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
       __pyx_r = 1;
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":467
+      /* "cynum.pxd":483
  *     cdef iterable_t i
  *     for i in range(MAX_LENGTH):
  *         if first.digits[i] < second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4579,7 +4048,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
  */
     }
 
-    /* "tests/cynum.pxd":469
+    /* "cynum.pxd":485
  *         if first.digits[i] < second.digits[i]:
  *             return True
  *         elif first.digits[i] > second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4589,7 +4058,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) > (__pyx_v_second->digits[__pyx_v_i]));
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":470
+      /* "cynum.pxd":486
  *             return True
  *         elif first.digits[i] > second.digits[i]:
  *             return False             # <<<<<<<<<<<<<<
@@ -4599,7 +4068,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
       __pyx_r = 0;
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":469
+      /* "cynum.pxd":485
  *         if first.digits[i] < second.digits[i]:
  *             return True
  *         elif first.digits[i] > second.digits[i]:             # <<<<<<<<<<<<<<
@@ -4609,7 +4078,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
     }
   }
 
-  /* "tests/cynum.pxd":471
+  /* "cynum.pxd":487
  *         elif first.digits[i] > second.digits[i]:
  *             return False
  *     return False  # equal             # <<<<<<<<<<<<<<
@@ -4619,7 +4088,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
   __pyx_r = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":464
+  /* "cynum.pxd":480
  *     return (first.exp == second.exp) and _eq_digits(first, second)
  * 
  * cdef inline bool _less_than_digits_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:  # only checks digits in-order             # <<<<<<<<<<<<<<
@@ -4632,7 +4101,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":473
+/* "cynum.pxd":489
  *     return False  # equal
  * 
  * cdef inline bool _less_than_exp_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits             # <<<<<<<<<<<<<<
@@ -4643,7 +4112,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_digits_cy(_cydecimal_
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_exp_cy(_cydecimal_ptr __pyx_v_first, _cydecimal_ptr __pyx_v_second) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":474
+  /* "cynum.pxd":490
  * 
  * cdef inline bool _less_than_exp_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits
  *     return first.exp < second.exp             # <<<<<<<<<<<<<<
@@ -4653,7 +4122,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_exp_cy(_cydecimal_ptr
   __pyx_r = (__pyx_v_first->exp < __pyx_v_second->exp);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":473
+  /* "cynum.pxd":489
  *     return False  # equal
  * 
  * cdef inline bool _less_than_exp_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # does NOT normalize digits             # <<<<<<<<<<<<<<
@@ -4666,7 +4135,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__less_than_exp_cy(_cydecimal_ptr
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":476
+/* "cynum.pxd":492
  *     return first.exp < second.exp
  * 
  * cdef inline bool _true_less_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4678,7 +4147,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   bool __pyx_r;
   int __pyx_t_1;
 
-  /* "tests/cynum.pxd":477
+  /* "cynum.pxd":493
  * 
  * cdef inline bool _true_less_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4688,7 +4157,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   __pyx_t_1 = (__pyx_v_first->exp > __pyx_v_second->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":478
+    /* "cynum.pxd":494
  * cdef inline bool _true_less_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4697,7 +4166,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
  */
     _left_shift_digits(__pyx_v_second, (__pyx_v_first->exp - __pyx_v_second->exp));
 
-    /* "tests/cynum.pxd":477
+    /* "cynum.pxd":493
  * 
  * cdef inline bool _true_less_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -4707,7 +4176,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pxd":479
+  /* "cynum.pxd":495
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4717,7 +4186,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   __pyx_t_1 = (__pyx_v_second->exp > __pyx_v_first->exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":480
+    /* "cynum.pxd":496
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -4726,7 +4195,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
  */
     _left_shift_digits(__pyx_v_first, (__pyx_v_second->exp - __pyx_v_first->exp));
 
-    /* "tests/cynum.pxd":479
+    /* "cynum.pxd":495
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -4736,7 +4205,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pxd":481
+  /* "cynum.pxd":497
  *     elif second.exp > first.exp:
  *         _left_shift_digits(first, second.exp-first.exp)  # bring up value
  *     return _less_than_digits(first, second)             # <<<<<<<<<<<<<<
@@ -4746,7 +4215,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   __pyx_r = _less_than_digits(__pyx_v_first, __pyx_v_second);
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":476
+  /* "cynum.pxd":492
  *     return first.exp < second.exp
  * 
  * cdef inline bool _true_less_than_cy(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil:  # DOES normalize digits             # <<<<<<<<<<<<<<
@@ -4759,7 +4228,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum__true_less_than_cy(_cydecimal_pt
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":483
+/* "cynum.pxd":499
  *     return _less_than_digits(first, second)
  * 
  * cdef inline iterable_t _n_precision_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4775,7 +4244,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pxd":485
+  /* "cynum.pxd":501
  * cdef inline iterable_t _n_precision_cy(const _cydecimal_ptr first) noexcept nogil:
  *     cdef iterable_t i
  *     for i in range(MAX_INDICE, N_PRECISION_I-1, -1):             # <<<<<<<<<<<<<<
@@ -4787,7 +4256,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
   for (__pyx_t_3 = MAX_INDICE + 1; __pyx_t_3 > __pyx_t_2 + 1; ) { __pyx_t_3-=1;
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pxd":486
+    /* "cynum.pxd":502
  *     cdef iterable_t i
  *     for i in range(MAX_INDICE, N_PRECISION_I-1, -1):
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -4797,7 +4266,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) != 0);
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":487
+      /* "cynum.pxd":503
  *     for i in range(MAX_INDICE, N_PRECISION_I-1, -1):
  *         if first.digits[i] != 0:
  *             return i-N_PRECISION_I             # <<<<<<<<<<<<<<
@@ -4807,7 +4276,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
       __pyx_r = (__pyx_v_i - N_PRECISION_I);
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":486
+      /* "cynum.pxd":502
  *     cdef iterable_t i
  *     for i in range(MAX_INDICE, N_PRECISION_I-1, -1):
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -4817,7 +4286,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
     }
   }
 
-  /* "tests/cynum.pxd":488
+  /* "cynum.pxd":504
  *         if first.digits[i] != 0:
  *             return i-N_PRECISION_I
  *     return N_PRECISION  # all precision is taken up             # <<<<<<<<<<<<<<
@@ -4827,7 +4296,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
   __pyx_r = N_PRECISION;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":483
+  /* "cynum.pxd":499
  *     return _less_than_digits(first, second)
  * 
  * cdef inline iterable_t _n_precision_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4840,7 +4309,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_precision_cy(_cydecimal
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":490
+/* "cynum.pxd":506
  *     return N_PRECISION  # all precision is taken up
  * 
  * cdef inline iterable_t _n_empty_zeros_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4854,7 +4323,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
   iterable_t __pyx_t_1;
   int __pyx_t_2;
 
-  /* "tests/cynum.pxd":492
+  /* "cynum.pxd":508
  * cdef inline iterable_t _n_empty_zeros_cy(const _cydecimal_ptr first) noexcept nogil:
  *     cdef iterable_t i  # warning: this function is not safe, just checks whole part, not decimal
  *     for i in range(N_DIGITS_I, -1, -1):  # essentially reversed _n_whole_digits             # <<<<<<<<<<<<<<
@@ -4864,7 +4333,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
   for (__pyx_t_1 = N_DIGITS_I + 1; __pyx_t_1 > -1 + 1; ) { __pyx_t_1-=1;
     __pyx_v_i = __pyx_t_1;
 
-    /* "tests/cynum.pxd":493
+    /* "cynum.pxd":509
  *     cdef iterable_t i  # warning: this function is not safe, just checks whole part, not decimal
  *     for i in range(N_DIGITS_I, -1, -1):  # essentially reversed _n_whole_digits
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -4874,7 +4343,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
     __pyx_t_2 = ((__pyx_v_first->digits[__pyx_v_i]) != 0);
     if (__pyx_t_2) {
 
-      /* "tests/cynum.pxd":494
+      /* "cynum.pxd":510
  *     for i in range(N_DIGITS_I, -1, -1):  # essentially reversed _n_whole_digits
  *         if first.digits[i] != 0:
  *             return N_DIGITS-i             # <<<<<<<<<<<<<<
@@ -4884,7 +4353,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
       __pyx_r = (N_DIGITS - __pyx_v_i);
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":493
+      /* "cynum.pxd":509
  *     cdef iterable_t i  # warning: this function is not safe, just checks whole part, not decimal
  *     for i in range(N_DIGITS_I, -1, -1):  # essentially reversed _n_whole_digits
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -4894,7 +4363,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
     }
   }
 
-  /* "tests/cynum.pxd":495
+  /* "cynum.pxd":511
  *         if first.digits[i] != 0:
  *             return N_DIGITS-i
  *     return N_DIGITS  # none of whole part is take up             # <<<<<<<<<<<<<<
@@ -4904,7 +4373,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
   __pyx_r = N_DIGITS;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":490
+  /* "cynum.pxd":506
  *     return N_PRECISION  # all precision is taken up
  * 
  * cdef inline iterable_t _n_empty_zeros_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4917,7 +4386,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":497
+/* "cynum.pxd":513
  *     return N_DIGITS  # none of whole part is take up
  * 
  * cdef inline iterable_t _n_digits_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4928,7 +4397,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_empty_zeros_cy(_cydecim
 static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_digits_cy(_cydecimal_ptr const __pyx_v_first) {
   iterable_t __pyx_r;
 
-  /* "tests/cynum.pxd":498
+  /* "cynum.pxd":514
  * 
  * cdef inline iterable_t _n_digits_cy(const _cydecimal_ptr first) noexcept nogil:
  *     return _n_precision(first)+_n_whole_digits(first) # lazy lmao             # <<<<<<<<<<<<<<
@@ -4938,7 +4407,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_digits_cy(_cydecimal_pt
   __pyx_r = (_n_precision(__pyx_v_first) + _n_whole_digits(__pyx_v_first));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":497
+  /* "cynum.pxd":513
  *     return N_DIGITS  # none of whole part is take up
  * 
  * cdef inline iterable_t _n_digits_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4951,7 +4420,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_digits_cy(_cydecimal_pt
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":500
+/* "cynum.pxd":516
  *     return _n_precision(first)+_n_whole_digits(first) # lazy lmao
  * 
  * cdef inline iterable_t _n_whole_digits_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -4967,7 +4436,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pxd":502
+  /* "cynum.pxd":518
  * cdef inline iterable_t _n_whole_digits_cy(const _cydecimal_ptr first) noexcept nogil:
  *     cdef iterable_t i
  *     for i in range(N_DIGITS):             # <<<<<<<<<<<<<<
@@ -4979,7 +4448,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pxd":503
+    /* "cynum.pxd":519
  *     cdef iterable_t i
  *     for i in range(N_DIGITS):
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -4989,7 +4458,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
     __pyx_t_4 = ((__pyx_v_first->digits[__pyx_v_i]) != 0);
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pxd":504
+      /* "cynum.pxd":520
  *     for i in range(N_DIGITS):
  *         if first.digits[i] != 0:
  *             return N_DIGITS-i             # <<<<<<<<<<<<<<
@@ -4999,7 +4468,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
       __pyx_r = (N_DIGITS - __pyx_v_i);
       goto __pyx_L0;
 
-      /* "tests/cynum.pxd":503
+      /* "cynum.pxd":519
  *     cdef iterable_t i
  *     for i in range(N_DIGITS):
  *         if first.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -5009,7 +4478,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
     }
   }
 
-  /* "tests/cynum.pxd":505
+  /* "cynum.pxd":521
  *         if first.digits[i] != 0:
  *             return N_DIGITS-i
  *     return N_DIGITS  # all whole part is taken up             # <<<<<<<<<<<<<<
@@ -5019,7 +4488,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
   __pyx_r = N_DIGITS;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":500
+  /* "cynum.pxd":516
  *     return _n_precision(first)+_n_whole_digits(first) # lazy lmao
  * 
  * cdef inline iterable_t _n_whole_digits_cy(const _cydecimal_ptr first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -5032,7 +4501,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum__n_whole_digits_cy(_cydeci
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":507
+/* "cynum.pxd":523
  *     return N_DIGITS  # all whole part is taken up
  * 
  * cdef inline void _normalize_digits_cy(_cydecimal_ptr first, const bool mode) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -5044,7 +4513,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
   iterable_t __pyx_v_i;
   int __pyx_t_1;
 
-  /* "tests/cynum.pxd":511
+  /* "cynum.pxd":527
  *     # mode==1 brings up decimal
  *     # mode==0 brings down exponent and mantissa if there are leading zeros (i.e after a mult)
  *     if mode:  # are there digits to the right of the decimal?             # <<<<<<<<<<<<<<
@@ -5054,7 +4523,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
   __pyx_t_1 = (__pyx_v_mode != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pxd":512
+    /* "cynum.pxd":528
  *     # mode==0 brings down exponent and mantissa if there are leading zeros (i.e after a mult)
  *     if mode:  # are there digits to the right of the decimal?
  *         i = _n_precision(first)             # <<<<<<<<<<<<<<
@@ -5063,7 +4532,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     __pyx_v_i = _n_precision(__pyx_v_first);
 
-    /* "tests/cynum.pxd":513
+    /* "cynum.pxd":529
  *     if mode:  # are there digits to the right of the decimal?
  *         i = _n_precision(first)
  *         _left_shift_digits(first, i)             # <<<<<<<<<<<<<<
@@ -5072,7 +4541,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     _left_shift_digits(__pyx_v_first, __pyx_v_i);
 
-    /* "tests/cynum.pxd":514
+    /* "cynum.pxd":530
  *         i = _n_precision(first)
  *         _left_shift_digits(first, i)
  *         first.exp -= i  # move everything to full digits, change exponent             # <<<<<<<<<<<<<<
@@ -5081,7 +4550,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     __pyx_v_first->exp = (__pyx_v_first->exp - __pyx_v_i);
 
-    /* "tests/cynum.pxd":515
+    /* "cynum.pxd":531
  *         _left_shift_digits(first, i)
  *         first.exp -= i  # move everything to full digits, change exponent
  *         return             # <<<<<<<<<<<<<<
@@ -5090,7 +4559,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     goto __pyx_L0;
 
-    /* "tests/cynum.pxd":511
+    /* "cynum.pxd":527
  *     # mode==1 brings up decimal
  *     # mode==0 brings down exponent and mantissa if there are leading zeros (i.e after a mult)
  *     if mode:  # are there digits to the right of the decimal?             # <<<<<<<<<<<<<<
@@ -5099,7 +4568,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
   }
 
-  /* "tests/cynum.pxd":517
+  /* "cynum.pxd":533
  *         return
  *     else:  # we wanna remove zeros at the end
  *         i = _n_empty_zeros(first)             # <<<<<<<<<<<<<<
@@ -5109,7 +4578,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
   /*else*/ {
     __pyx_v_i = _n_empty_zeros(__pyx_v_first);
 
-    /* "tests/cynum.pxd":518
+    /* "cynum.pxd":534
  *     else:  # we wanna remove zeros at the end
  *         i = _n_empty_zeros(first)
  *         first.exp += i             # <<<<<<<<<<<<<<
@@ -5118,7 +4587,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     __pyx_v_first->exp = (__pyx_v_first->exp + __pyx_v_i);
 
-    /* "tests/cynum.pxd":519
+    /* "cynum.pxd":535
  *         i = _n_empty_zeros(first)
  *         first.exp += i
  *         _right_shift_digits(first, i)             # <<<<<<<<<<<<<<
@@ -5127,7 +4596,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
  */
     _right_shift_digits(__pyx_v_first, __pyx_v_i);
 
-    /* "tests/cynum.pxd":520
+    /* "cynum.pxd":536
  *         first.exp += i
  *         _right_shift_digits(first, i)
  *         return             # <<<<<<<<<<<<<<
@@ -5137,7 +4606,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
     goto __pyx_L0;
   }
 
-  /* "tests/cynum.pxd":507
+  /* "cynum.pxd":523
  *     return N_DIGITS  # all whole part is taken up
  * 
  * cdef inline void _normalize_digits_cy(_cydecimal_ptr first, const bool mode) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -5149,7 +4618,7 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum__normalize_digits_cy(_cydecimal_
   __pyx_L0:;
 }
 
-/* "tests/cynum.pxd":523
+/* "cynum.pxd":539
  * 
  * 
  * cpdef inline dict new_decimal_from_string(const char* first) noexcept:             # <<<<<<<<<<<<<<
@@ -5167,7 +4636,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_string(cha
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_string", 0);
 
-  /* "tests/cynum.pxd":524
+  /* "cynum.pxd":540
  * 
  * cpdef inline dict new_decimal_from_string(const char* first) noexcept:
  *     return _format_decimal(_decimal_from_string(first))             # <<<<<<<<<<<<<<
@@ -5175,13 +4644,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_string(cha
  * cpdef inline dict norm_decimal_from_string(const char* first) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_decimal_from_string(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 524, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__decimal_from_string(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 540, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":523
+  /* "cynum.pxd":539
  * 
  * 
  * cpdef inline dict new_decimal_from_string(const char* first) noexcept:             # <<<<<<<<<<<<<<
@@ -5212,7 +4681,7 @@ static PyObject *__pyx_pw_5tests_5cynum_1new_decimal_from_string(PyObject *__pyx
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("new_decimal_from_string (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __Pyx_PyObject_AsString(__pyx_arg_first); if (unlikely((!__pyx_v_first) && PyErr_Occurred())) __PYX_ERR(0, 523, __pyx_L3_error)
+    __pyx_v_first = __Pyx_PyObject_AsString(__pyx_arg_first); if (unlikely((!__pyx_v_first) && PyErr_Occurred())) __PYX_ERR(2, 539, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5236,7 +4705,7 @@ static PyObject *__pyx_pf_5tests_5cynum_new_decimal_from_string(CYTHON_UNUSED Py
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_string", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_string(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 523, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_string(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 539, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5253,7 +4722,7 @@ static PyObject *__pyx_pf_5tests_5cynum_new_decimal_from_string(CYTHON_UNUSED Py
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":526
+/* "cynum.pxd":542
  *     return _format_decimal(_decimal_from_string(first))
  * 
  * cpdef inline dict norm_decimal_from_string(const char* first) noexcept:             # <<<<<<<<<<<<<<
@@ -5271,7 +4740,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_string(ch
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_string", 0);
 
-  /* "tests/cynum.pxd":527
+  /* "cynum.pxd":543
  * 
  * cpdef inline dict norm_decimal_from_string(const char* first) noexcept:
  *     return _format_decimal(_norm_decimal_from_string(first))             # <<<<<<<<<<<<<<
@@ -5279,13 +4748,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_string(ch
  * cpdef inline dict norm_decimal_from_double(const double first) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_norm_decimal_from_string(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 527, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__norm_decimal_from_string(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 543, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":526
+  /* "cynum.pxd":542
  *     return _format_decimal(_decimal_from_string(first))
  * 
  * cpdef inline dict norm_decimal_from_string(const char* first) noexcept:             # <<<<<<<<<<<<<<
@@ -5316,7 +4785,7 @@ static PyObject *__pyx_pw_5tests_5cynum_3norm_decimal_from_string(PyObject *__py
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("norm_decimal_from_string (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __Pyx_PyObject_AsString(__pyx_arg_first); if (unlikely((!__pyx_v_first) && PyErr_Occurred())) __PYX_ERR(0, 526, __pyx_L3_error)
+    __pyx_v_first = __Pyx_PyObject_AsString(__pyx_arg_first); if (unlikely((!__pyx_v_first) && PyErr_Occurred())) __PYX_ERR(2, 542, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5340,7 +4809,7 @@ static PyObject *__pyx_pf_5tests_5cynum_2norm_decimal_from_string(CYTHON_UNUSED 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_string", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_string(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 526, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_string(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 542, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5357,7 +4826,7 @@ static PyObject *__pyx_pf_5tests_5cynum_2norm_decimal_from_string(CYTHON_UNUSED 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":529
+/* "cynum.pxd":545
  *     return _format_decimal(_norm_decimal_from_string(first))
  * 
  * cpdef inline dict norm_decimal_from_double(const double first) noexcept:             # <<<<<<<<<<<<<<
@@ -5375,7 +4844,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_double(do
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_double", 0);
 
-  /* "tests/cynum.pxd":530
+  /* "cynum.pxd":546
  * 
  * cpdef inline dict norm_decimal_from_double(const double first) noexcept:
  *     return _format_decimal(_norm_decimal_from_double(first))             # <<<<<<<<<<<<<<
@@ -5383,13 +4852,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_double(do
  * cpdef inline dict new_decimal_from_double(const double first) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_norm_decimal_from_double(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 530, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__norm_decimal_from_double(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 546, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":529
+  /* "cynum.pxd":545
  *     return _format_decimal(_norm_decimal_from_string(first))
  * 
  * cpdef inline dict norm_decimal_from_double(const double first) noexcept:             # <<<<<<<<<<<<<<
@@ -5420,7 +4889,7 @@ static PyObject *__pyx_pw_5tests_5cynum_5norm_decimal_from_double(PyObject *__py
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("norm_decimal_from_double (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_PyFloat_AsDouble(__pyx_arg_first); if (unlikely((__pyx_v_first == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 529, __pyx_L3_error)
+    __pyx_v_first = __pyx_PyFloat_AsDouble(__pyx_arg_first); if (unlikely((__pyx_v_first == (double)-1) && PyErr_Occurred())) __PYX_ERR(2, 545, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5444,7 +4913,7 @@ static PyObject *__pyx_pf_5tests_5cynum_4norm_decimal_from_double(CYTHON_UNUSED 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_double", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_double(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 529, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_double(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 545, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5461,7 +4930,7 @@ static PyObject *__pyx_pf_5tests_5cynum_4norm_decimal_from_double(CYTHON_UNUSED 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":532
+/* "cynum.pxd":548
  *     return _format_decimal(_norm_decimal_from_double(first))
  * 
  * cpdef inline dict new_decimal_from_double(const double first) noexcept:             # <<<<<<<<<<<<<<
@@ -5479,7 +4948,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_double(dou
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_double", 0);
 
-  /* "tests/cynum.pxd":533
+  /* "cynum.pxd":549
  * 
  * cpdef inline dict new_decimal_from_double(const double first) noexcept:
  *     return _format_decimal(_decimal_from_double(first))             # <<<<<<<<<<<<<<
@@ -5487,13 +4956,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_double(dou
  * cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_decimal_from_double(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 533, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__decimal_from_double(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 549, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":532
+  /* "cynum.pxd":548
  *     return _format_decimal(_norm_decimal_from_double(first))
  * 
  * cpdef inline dict new_decimal_from_double(const double first) noexcept:             # <<<<<<<<<<<<<<
@@ -5524,7 +4993,7 @@ static PyObject *__pyx_pw_5tests_5cynum_7new_decimal_from_double(PyObject *__pyx
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("new_decimal_from_double (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_PyFloat_AsDouble(__pyx_arg_first); if (unlikely((__pyx_v_first == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 532, __pyx_L3_error)
+    __pyx_v_first = __pyx_PyFloat_AsDouble(__pyx_arg_first); if (unlikely((__pyx_v_first == (double)-1) && PyErr_Occurred())) __PYX_ERR(2, 548, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5548,7 +5017,7 @@ static PyObject *__pyx_pf_5tests_5cynum_6new_decimal_from_double(CYTHON_UNUSED P
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_double", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_double(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_double(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 548, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5565,7 +5034,7 @@ static PyObject *__pyx_pf_5tests_5cynum_6new_decimal_from_double(CYTHON_UNUSED P
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":535
+/* "cynum.pxd":551
  *     return _format_decimal(_decimal_from_double(first))
  * 
  * cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:             # <<<<<<<<<<<<<<
@@ -5592,7 +5061,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal(PyObject *__pyx
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal", 0);
 
-  /* "tests/cynum.pxd":536
+  /* "cynum.pxd":552
  * 
  * cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:
  *     cdef char[MAX_LENGTH] d = <char*> digits             # <<<<<<<<<<<<<<
@@ -5601,24 +5070,24 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal(PyObject *__pyx
  */
   if (unlikely(__pyx_v_digits == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 536, __pyx_L1_error)
+    __PYX_ERR(2, 552, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsWritableString(__pyx_v_digits); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 536, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsWritableString(__pyx_v_digits); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(2, 552, __pyx_L1_error)
   memcpy(&(__pyx_v_d[0]), ((char *)__pyx_t_1), sizeof(__pyx_v_d[0]) * (MAX_LENGTH - 0));
 
-  /* "tests/cynum.pxd":537
+  /* "cynum.pxd":553
  * cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:
  *     cdef char[MAX_LENGTH] d = <char*> digits
  *     cdef dict i = _format_decimal(_decimal(&d, exp, t))             # <<<<<<<<<<<<<<
  *     free(d)
  * 
  */
-  __pyx_t_2 = __pyx_f_5tests_5cynum__format_decimal(_decimal((&__pyx_v_d), __pyx_v_exp, __pyx_v_t)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 537, __pyx_L1_error)
+  __pyx_t_2 = __pyx_f_5tests_5cynum__format_decimal(_decimal((&__pyx_v_d), __pyx_v_exp, __pyx_v_t)); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 553, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_v_i = ((PyObject*)__pyx_t_2);
   __pyx_t_2 = 0;
 
-  /* "tests/cynum.pxd":538
+  /* "cynum.pxd":554
  *     cdef char[MAX_LENGTH] d = <char*> digits
  *     cdef dict i = _format_decimal(_decimal(&d, exp, t))
  *     free(d)             # <<<<<<<<<<<<<<
@@ -5627,7 +5096,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal(PyObject *__pyx
  */
   free(__pyx_v_d);
 
-  /* "tests/cynum.pxd":540
+  /* "cynum.pxd":556
  *     free(d)
  * 
  *     return i             # <<<<<<<<<<<<<<
@@ -5639,7 +5108,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal(PyObject *__pyx
   __pyx_r = __pyx_v_i;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":535
+  /* "cynum.pxd":551
  *     return _format_decimal(_decimal_from_double(first))
  * 
  * cpdef inline dict new_decimal(bytes digits, const exponent_t exp, const bool t) noexcept:             # <<<<<<<<<<<<<<
@@ -5706,26 +5175,26 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_digits)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 535, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 551, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_exp)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 535, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 551, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, 1); __PYX_ERR(0, 535, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, 1); __PYX_ERR(2, 551, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_t)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 535, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 551, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, 2); __PYX_ERR(0, 535, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, 2); __PYX_ERR(2, 551, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "new_decimal") < 0)) __PYX_ERR(0, 535, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "new_decimal") < 0)) __PYX_ERR(2, 551, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 3)) {
       goto __pyx_L5_argtuple_error;
@@ -5735,18 +5204,18 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[2] = __Pyx_Arg_FASTCALL(__pyx_args, 2);
     }
     __pyx_v_digits = ((PyObject*)values[0]);
-    __pyx_v_exp = __Pyx_PyInt_As_exponent_t(values[1]); if (unlikely((__pyx_v_exp == ((exponent_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 535, __pyx_L3_error)
-    __pyx_v_t = __Pyx_PyObject_IsTrue(values[2]); if (unlikely((__pyx_v_t == ((bool)-1)) && PyErr_Occurred())) __PYX_ERR(0, 535, __pyx_L3_error)
+    __pyx_v_exp = __Pyx_PyInt_As_exponent_t(values[1]); if (unlikely((__pyx_v_exp == ((exponent_t)-1)) && PyErr_Occurred())) __PYX_ERR(2, 551, __pyx_L3_error)
+    __pyx_v_t = __Pyx_PyObject_IsTrue(values[2]); if (unlikely((__pyx_v_t == ((bool)-1)) && PyErr_Occurred())) __PYX_ERR(2, 551, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, __pyx_nargs); __PYX_ERR(0, 535, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("new_decimal", 1, 3, 3, __pyx_nargs); __PYX_ERR(2, 551, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.new_decimal", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_digits), (&PyBytes_Type), 1, "digits", 1))) __PYX_ERR(0, 535, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_digits), (&PyBytes_Type), 1, "digits", 1))) __PYX_ERR(2, 551, __pyx_L1_error)
   __pyx_r = __pyx_pf_5tests_5cynum_8new_decimal(__pyx_self, __pyx_v_digits, __pyx_v_exp, __pyx_v_t);
 
   /* function exit code */
@@ -5767,7 +5236,7 @@ static PyObject *__pyx_pf_5tests_5cynum_8new_decimal(CYTHON_UNUSED PyObject *__p
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal(__pyx_v_digits, __pyx_v_exp, __pyx_v_t, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 535, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal(__pyx_v_digits, __pyx_v_exp, __pyx_v_t, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 551, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5784,7 +5253,7 @@ static PyObject *__pyx_pf_5tests_5cynum_8new_decimal(CYTHON_UNUSED PyObject *__p
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":542
+/* "cynum.pxd":558
  *     return i
  * 
  * cpdef inline dict norm_decimal_from_int(int first) noexcept:             # <<<<<<<<<<<<<<
@@ -5802,7 +5271,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_int(int _
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_int", 0);
 
-  /* "tests/cynum.pxd":543
+  /* "cynum.pxd":559
  * 
  * cpdef inline dict norm_decimal_from_int(int first) noexcept:
  *     return _format_decimal(_norm_decimal_from_int(first))             # <<<<<<<<<<<<<<
@@ -5810,13 +5279,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_norm_decimal_from_int(int _
  * cpdef inline dict new_decimal_from_int(int first) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_norm_decimal_from_int(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 543, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__norm_decimal_from_int(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 559, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":542
+  /* "cynum.pxd":558
  *     return i
  * 
  * cpdef inline dict norm_decimal_from_int(int first) noexcept:             # <<<<<<<<<<<<<<
@@ -5847,7 +5316,7 @@ static PyObject *__pyx_pw_5tests_5cynum_11norm_decimal_from_int(PyObject *__pyx_
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("norm_decimal_from_int (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __Pyx_PyInt_As_int(__pyx_arg_first); if (unlikely((__pyx_v_first == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 542, __pyx_L3_error)
+    __pyx_v_first = __Pyx_PyInt_As_int(__pyx_arg_first); if (unlikely((__pyx_v_first == (int)-1) && PyErr_Occurred())) __PYX_ERR(2, 558, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5871,7 +5340,7 @@ static PyObject *__pyx_pf_5tests_5cynum_10norm_decimal_from_int(CYTHON_UNUSED Py
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("norm_decimal_from_int", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_int(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 542, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_norm_decimal_from_int(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 558, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5888,7 +5357,7 @@ static PyObject *__pyx_pf_5tests_5cynum_10norm_decimal_from_int(CYTHON_UNUSED Py
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":545
+/* "cynum.pxd":561
  *     return _format_decimal(_norm_decimal_from_int(first))
  * 
  * cpdef inline dict new_decimal_from_int(int first) noexcept:             # <<<<<<<<<<<<<<
@@ -5906,7 +5375,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_int(int __
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_int", 0);
 
-  /* "tests/cynum.pxd":546
+  /* "cynum.pxd":562
  * 
  * cpdef inline dict new_decimal_from_int(int first) noexcept:
  *     return _format_decimal(_decimal_from_int(first))             # <<<<<<<<<<<<<<
@@ -5914,13 +5383,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_new_decimal_from_int(int __
  * cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_decimal_from_int(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 546, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__decimal_from_int(__pyx_v_first)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 562, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":545
+  /* "cynum.pxd":561
  *     return _format_decimal(_norm_decimal_from_int(first))
  * 
  * cpdef inline dict new_decimal_from_int(int first) noexcept:             # <<<<<<<<<<<<<<
@@ -5951,7 +5420,7 @@ static PyObject *__pyx_pw_5tests_5cynum_13new_decimal_from_int(PyObject *__pyx_s
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("new_decimal_from_int (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __Pyx_PyInt_As_int(__pyx_arg_first); if (unlikely((__pyx_v_first == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 545, __pyx_L3_error)
+    __pyx_v_first = __Pyx_PyInt_As_int(__pyx_arg_first); if (unlikely((__pyx_v_first == (int)-1) && PyErr_Occurred())) __PYX_ERR(2, 561, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5975,7 +5444,7 @@ static PyObject *__pyx_pf_5tests_5cynum_12new_decimal_from_int(CYTHON_UNUSED PyO
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("new_decimal_from_int", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_int(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 545, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_new_decimal_from_int(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 561, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5992,7 +5461,7 @@ static PyObject *__pyx_pf_5tests_5cynum_12new_decimal_from_int(CYTHON_UNUSED PyO
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":548
+/* "cynum.pxd":564
  *     return _format_decimal(_decimal_from_int(first))
  * 
  * cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:             # <<<<<<<<<<<<<<
@@ -6016,7 +5485,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_normalize_digits(struct _cy
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("normalize_digits", 0);
 
-  /* "tests/cynum.pxd":549
+  /* "cynum.pxd":565
  * 
  * cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:
  *     _normalize_digits(&res, mode)             # <<<<<<<<<<<<<<
@@ -6025,7 +5494,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_normalize_digits(struct _cy
  */
   _normalize_digits((&__pyx_v_res), __pyx_v_mode);
 
-  /* "tests/cynum.pxd":550
+  /* "cynum.pxd":566
  * cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:
  *     _normalize_digits(&res, mode)
  *     return _format_decimal(res)             # <<<<<<<<<<<<<<
@@ -6033,13 +5502,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_normalize_digits(struct _cy
  * cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 550, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":548
+  /* "cynum.pxd":564
  *     return _format_decimal(_decimal_from_int(first))
  * 
  * cpdef inline dict normalize_digits(_cydecimal res, const bool mode) noexcept:             # <<<<<<<<<<<<<<
@@ -6102,19 +5571,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_res)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 548, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 564, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_mode)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 548, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 564, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("normalize_digits", 1, 2, 2, 1); __PYX_ERR(0, 548, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("normalize_digits", 1, 2, 2, 1); __PYX_ERR(2, 564, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "normalize_digits") < 0)) __PYX_ERR(0, 548, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "normalize_digits") < 0)) __PYX_ERR(2, 564, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6122,12 +5591,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 548, __pyx_L3_error)
-    __pyx_v_mode = __Pyx_PyObject_IsTrue(values[1]); if (unlikely((__pyx_v_mode == ((bool)-1)) && PyErr_Occurred())) __PYX_ERR(0, 548, __pyx_L3_error)
+    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 564, __pyx_L3_error)
+    __pyx_v_mode = __Pyx_PyObject_IsTrue(values[1]); if (unlikely((__pyx_v_mode == ((bool)-1)) && PyErr_Occurred())) __PYX_ERR(2, 564, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("normalize_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 548, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("normalize_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 564, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.normalize_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6149,7 +5618,7 @@ static PyObject *__pyx_pf_5tests_5cynum_14normalize_digits(CYTHON_UNUSED PyObjec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("normalize_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_normalize_digits(__pyx_v_res, __pyx_v_mode, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_normalize_digits(__pyx_v_res, __pyx_v_mode, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 564, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6166,7 +5635,7 @@ static PyObject *__pyx_pf_5tests_5cynum_14normalize_digits(CYTHON_UNUSED PyObjec
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":552
+/* "cynum.pxd":568
  *     return _format_decimal(res)
  * 
  * cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:             # <<<<<<<<<<<<<<
@@ -6190,7 +5659,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_right_shift_digits(struct _
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("right_shift_digits", 0);
 
-  /* "tests/cynum.pxd":553
+  /* "cynum.pxd":569
  * 
  * cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  *     _right_shift_digits(&res, num)             # <<<<<<<<<<<<<<
@@ -6199,7 +5668,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_right_shift_digits(struct _
  */
   _right_shift_digits((&__pyx_v_res), __pyx_v_num);
 
-  /* "tests/cynum.pxd":554
+  /* "cynum.pxd":570
  * cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  *     _right_shift_digits(&res, num)
  *     return _format_decimal(res)             # <<<<<<<<<<<<<<
@@ -6207,13 +5676,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_right_shift_digits(struct _
  * cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 554, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 570, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":552
+  /* "cynum.pxd":568
  *     return _format_decimal(res)
  * 
  * cpdef inline dict right_shift_digits(_cydecimal res, const iterable_t num) noexcept:             # <<<<<<<<<<<<<<
@@ -6276,19 +5745,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_res)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 552, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 568, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_num)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 552, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 568, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("right_shift_digits", 1, 2, 2, 1); __PYX_ERR(0, 552, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("right_shift_digits", 1, 2, 2, 1); __PYX_ERR(2, 568, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "right_shift_digits") < 0)) __PYX_ERR(0, 552, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "right_shift_digits") < 0)) __PYX_ERR(2, 568, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6296,12 +5765,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 552, __pyx_L3_error)
-    __pyx_v_num = __Pyx_PyInt_As_iterable_t(values[1]); if (unlikely((__pyx_v_num == ((iterable_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 552, __pyx_L3_error)
+    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 568, __pyx_L3_error)
+    __pyx_v_num = __Pyx_PyInt_As_iterable_t(values[1]); if (unlikely((__pyx_v_num == ((iterable_t)-1)) && PyErr_Occurred())) __PYX_ERR(2, 568, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("right_shift_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 552, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("right_shift_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 568, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.right_shift_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6323,7 +5792,7 @@ static PyObject *__pyx_pf_5tests_5cynum_16right_shift_digits(CYTHON_UNUSED PyObj
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("right_shift_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_right_shift_digits(__pyx_v_res, __pyx_v_num, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 552, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_right_shift_digits(__pyx_v_res, __pyx_v_num, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 568, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6340,7 +5809,7 @@ static PyObject *__pyx_pf_5tests_5cynum_16right_shift_digits(CYTHON_UNUSED PyObj
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":556
+/* "cynum.pxd":572
  *     return _format_decimal(res)
  * 
  * cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:             # <<<<<<<<<<<<<<
@@ -6364,7 +5833,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_left_shift_digits(struct _c
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("left_shift_digits", 0);
 
-  /* "tests/cynum.pxd":557
+  /* "cynum.pxd":573
  * 
  * cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  *     _left_shift_digits(&res, num)             # <<<<<<<<<<<<<<
@@ -6373,7 +5842,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_left_shift_digits(struct _c
  */
   _left_shift_digits((&__pyx_v_res), __pyx_v_num);
 
-  /* "tests/cynum.pxd":558
+  /* "cynum.pxd":574
  * cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:
  *     _left_shift_digits(&res, num)
  *     return _format_decimal(res)             # <<<<<<<<<<<<<<
@@ -6381,13 +5850,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_left_shift_digits(struct _c
  * cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 558, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_v_res); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 574, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":556
+  /* "cynum.pxd":572
  *     return _format_decimal(res)
  * 
  * cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexcept:             # <<<<<<<<<<<<<<
@@ -6450,19 +5919,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_res)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 556, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 572, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_num)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 556, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 572, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("left_shift_digits", 1, 2, 2, 1); __PYX_ERR(0, 556, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("left_shift_digits", 1, 2, 2, 1); __PYX_ERR(2, 572, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "left_shift_digits") < 0)) __PYX_ERR(0, 556, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "left_shift_digits") < 0)) __PYX_ERR(2, 572, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6470,12 +5939,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 556, __pyx_L3_error)
-    __pyx_v_num = __Pyx_PyInt_As_iterable_t(values[1]); if (unlikely((__pyx_v_num == ((iterable_t)-1)) && PyErr_Occurred())) __PYX_ERR(0, 556, __pyx_L3_error)
+    __pyx_v_res = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 572, __pyx_L3_error)
+    __pyx_v_num = __Pyx_PyInt_As_iterable_t(values[1]); if (unlikely((__pyx_v_num == ((iterable_t)-1)) && PyErr_Occurred())) __PYX_ERR(2, 572, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("left_shift_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 556, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("left_shift_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 572, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.left_shift_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6497,7 +5966,7 @@ static PyObject *__pyx_pf_5tests_5cynum_18left_shift_digits(CYTHON_UNUSED PyObje
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("left_shift_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_left_shift_digits(__pyx_v_res, __pyx_v_num, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 556, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_left_shift_digits(__pyx_v_res, __pyx_v_num, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 572, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6514,7 +5983,7 @@ static PyObject *__pyx_pf_5tests_5cynum_18left_shift_digits(CYTHON_UNUSED PyObje
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":560
+/* "cynum.pxd":576
  *     return _format_decimal(res)
  * 
  * cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6532,7 +6001,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_greater_than_digits(struct _cydecimal const __pyx_v_first, struct _cydecimal const __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":561
+  /* "cynum.pxd":577
  * 
  * cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
  *     return _greater_than_digits(&first, &second)             # <<<<<<<<<<<<<<
@@ -6542,7 +6011,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_greater_than_digits(struct _cyde
   __pyx_r = _greater_than_digits((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":560
+  /* "cynum.pxd":576
  *     return _format_decimal(res)
  * 
  * cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6599,19 +6068,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 560, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 576, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 560, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 576, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("greater_than_digits", 1, 2, 2, 1); __PYX_ERR(0, 560, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("greater_than_digits", 1, 2, 2, 1); __PYX_ERR(2, 576, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "greater_than_digits") < 0)) __PYX_ERR(0, 560, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "greater_than_digits") < 0)) __PYX_ERR(2, 576, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6619,12 +6088,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 560, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 560, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 576, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 576, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("greater_than_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 560, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("greater_than_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 576, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.greater_than_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6646,7 +6115,7 @@ static PyObject *__pyx_pf_5tests_5cynum_20greater_than_digits(CYTHON_UNUSED PyOb
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("greater_than_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_greater_than_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 560, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_greater_than_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 576, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6663,7 +6132,7 @@ static PyObject *__pyx_pf_5tests_5cynum_20greater_than_digits(CYTHON_UNUSED PyOb
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":563
+/* "cynum.pxd":579
  *     return _greater_than_digits(&first, &second)
  * 
  * cpdef inline bool greater_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6681,7 +6150,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_greater_than_exp(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":564
+  /* "cynum.pxd":580
  * 
  * cpdef inline bool greater_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _greater_than_exp(&first, &second)             # <<<<<<<<<<<<<<
@@ -6691,7 +6160,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_greater_than_exp(struct _cydecim
   __pyx_r = _greater_than_exp((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":563
+  /* "cynum.pxd":579
  *     return _greater_than_digits(&first, &second)
  * 
  * cpdef inline bool greater_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6748,19 +6217,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 563, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 579, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 563, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 579, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("greater_than_exp", 1, 2, 2, 1); __PYX_ERR(0, 563, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("greater_than_exp", 1, 2, 2, 1); __PYX_ERR(2, 579, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "greater_than_exp") < 0)) __PYX_ERR(0, 563, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "greater_than_exp") < 0)) __PYX_ERR(2, 579, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6768,12 +6237,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 563, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 563, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 579, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 579, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("greater_than_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 563, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("greater_than_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 579, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.greater_than_exp", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6795,7 +6264,7 @@ static PyObject *__pyx_pf_5tests_5cynum_22greater_than_exp(CYTHON_UNUSED PyObjec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("greater_than_exp", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_greater_than_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 563, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_greater_than_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 579, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6812,7 +6281,7 @@ static PyObject *__pyx_pf_5tests_5cynum_22greater_than_exp(CYTHON_UNUSED PyObjec
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":566
+/* "cynum.pxd":582
  *     return _greater_than_exp(&first, &second)
  * 
  * cpdef inline bool true_greater_than(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6830,7 +6299,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_greater_than(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":567
+  /* "cynum.pxd":583
  * 
  * cpdef inline bool true_greater_than(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _true_greater_than(&first, &second)             # <<<<<<<<<<<<<<
@@ -6840,7 +6309,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_greater_than(struct _cydeci
   __pyx_r = _true_greater_than((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":566
+  /* "cynum.pxd":582
  *     return _greater_than_exp(&first, &second)
  * 
  * cpdef inline bool true_greater_than(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6897,19 +6366,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 566, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 582, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 566, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 582, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("true_greater_than", 1, 2, 2, 1); __PYX_ERR(0, 566, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("true_greater_than", 1, 2, 2, 1); __PYX_ERR(2, 582, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_greater_than") < 0)) __PYX_ERR(0, 566, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_greater_than") < 0)) __PYX_ERR(2, 582, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -6917,12 +6386,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 566, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 566, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 582, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 582, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("true_greater_than", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 566, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("true_greater_than", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 582, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.true_greater_than", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -6944,7 +6413,7 @@ static PyObject *__pyx_pf_5tests_5cynum_24true_greater_than(CYTHON_UNUSED PyObje
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("true_greater_than", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_greater_than(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 566, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_greater_than(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -6961,7 +6430,7 @@ static PyObject *__pyx_pf_5tests_5cynum_24true_greater_than(CYTHON_UNUSED PyObje
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":569
+/* "cynum.pxd":585
  *     return _true_greater_than(&first, &second)
  * 
  * cpdef inline bool less_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6979,7 +6448,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_less_than_digits(struct _cydecimal const __pyx_v_first, struct _cydecimal const __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":570
+  /* "cynum.pxd":586
  * 
  * cpdef inline bool less_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
  *     return _less_than_digits(&first, &second)             # <<<<<<<<<<<<<<
@@ -6989,7 +6458,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_less_than_digits(struct _cydecim
   __pyx_r = _less_than_digits((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":569
+  /* "cynum.pxd":585
  *     return _true_greater_than(&first, &second)
  * 
  * cpdef inline bool less_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7046,19 +6515,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 569, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 585, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 569, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 585, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("less_than_digits", 1, 2, 2, 1); __PYX_ERR(0, 569, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("less_than_digits", 1, 2, 2, 1); __PYX_ERR(2, 585, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "less_than_digits") < 0)) __PYX_ERR(0, 569, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "less_than_digits") < 0)) __PYX_ERR(2, 585, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7066,12 +6535,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 569, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 569, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 585, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 585, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("less_than_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 569, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("less_than_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 585, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.less_than_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7093,7 +6562,7 @@ static PyObject *__pyx_pf_5tests_5cynum_26less_than_digits(CYTHON_UNUSED PyObjec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("less_than_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_less_than_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 569, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_less_than_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 585, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7110,7 +6579,7 @@ static PyObject *__pyx_pf_5tests_5cynum_26less_than_digits(CYTHON_UNUSED PyObjec
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":572
+/* "cynum.pxd":588
  *     return _less_than_digits(&first, &second)
  * 
  * cpdef inline bool less_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7128,7 +6597,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_less_than_exp(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":573
+  /* "cynum.pxd":589
  * 
  * cpdef inline bool less_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _less_than_exp(&first, &second)             # <<<<<<<<<<<<<<
@@ -7138,7 +6607,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_less_than_exp(struct _cydecimal 
   __pyx_r = _less_than_exp((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":572
+  /* "cynum.pxd":588
  *     return _less_than_digits(&first, &second)
  * 
  * cpdef inline bool less_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7195,19 +6664,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 572, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 588, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 572, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 588, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("less_than_exp", 1, 2, 2, 1); __PYX_ERR(0, 572, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("less_than_exp", 1, 2, 2, 1); __PYX_ERR(2, 588, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "less_than_exp") < 0)) __PYX_ERR(0, 572, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "less_than_exp") < 0)) __PYX_ERR(2, 588, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7215,12 +6684,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 572, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 572, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 588, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 588, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("less_than_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 572, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("less_than_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 588, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.less_than_exp", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7242,7 +6711,7 @@ static PyObject *__pyx_pf_5tests_5cynum_28less_than_exp(CYTHON_UNUSED PyObject *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("less_than_exp", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_less_than_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 572, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_less_than_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 588, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7259,7 +6728,7 @@ static PyObject *__pyx_pf_5tests_5cynum_28less_than_exp(CYTHON_UNUSED PyObject *
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":575
+/* "cynum.pxd":591
  *     return _less_than_exp(&first, &second)
  * 
  * cpdef inline bool true_less_than(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7277,7 +6746,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_less_than(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":576
+  /* "cynum.pxd":592
  * 
  * cpdef inline bool true_less_than(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _true_less_than(&first, &second)             # <<<<<<<<<<<<<<
@@ -7287,7 +6756,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_less_than(struct _cydecimal
   __pyx_r = _true_less_than((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":575
+  /* "cynum.pxd":591
  *     return _less_than_exp(&first, &second)
  * 
  * cpdef inline bool true_less_than(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7344,19 +6813,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 575, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 591, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 575, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 591, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("true_less_than", 1, 2, 2, 1); __PYX_ERR(0, 575, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("true_less_than", 1, 2, 2, 1); __PYX_ERR(2, 591, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_less_than") < 0)) __PYX_ERR(0, 575, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_less_than") < 0)) __PYX_ERR(2, 591, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7364,12 +6833,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 575, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 575, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 591, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 591, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("true_less_than", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 575, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("true_less_than", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 591, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.true_less_than", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7391,7 +6860,7 @@ static PyObject *__pyx_pf_5tests_5cynum_30true_less_than(CYTHON_UNUSED PyObject 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("true_less_than", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_less_than(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 575, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_less_than(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 591, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7408,7 +6877,7 @@ static PyObject *__pyx_pf_5tests_5cynum_30true_less_than(CYTHON_UNUSED PyObject 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":578
+/* "cynum.pxd":594
  *     return _true_less_than(&first, &second)
  * 
  * cpdef inline bool eq_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7426,7 +6895,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_eq_digits(struct _cydecimal const __pyx_v_first, struct _cydecimal const __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":579
+  /* "cynum.pxd":595
  * 
  * cpdef inline bool eq_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
  *     return _eq_digits(&first, &second)             # <<<<<<<<<<<<<<
@@ -7436,7 +6905,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_eq_digits(struct _cydecimal cons
   __pyx_r = _eq_digits((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":578
+  /* "cynum.pxd":594
  *     return _true_less_than(&first, &second)
  * 
  * cpdef inline bool eq_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7493,19 +6962,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 578, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 594, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 578, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 594, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("eq_digits", 1, 2, 2, 1); __PYX_ERR(0, 578, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("eq_digits", 1, 2, 2, 1); __PYX_ERR(2, 594, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "eq_digits") < 0)) __PYX_ERR(0, 578, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "eq_digits") < 0)) __PYX_ERR(2, 594, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7513,12 +6982,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 578, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 578, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 594, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 594, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("eq_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 578, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("eq_digits", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 594, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.eq_digits", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7540,7 +7009,7 @@ static PyObject *__pyx_pf_5tests_5cynum_32eq_digits(CYTHON_UNUSED PyObject *__py
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("eq_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_eq_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_eq_digits(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 594, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7557,7 +7026,7 @@ static PyObject *__pyx_pf_5tests_5cynum_32eq_digits(CYTHON_UNUSED PyObject *__py
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":582
+/* "cynum.pxd":598
  * 
  * 
  * cpdef inline bool eq_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7575,7 +7044,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_eq_exp(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":583
+  /* "cynum.pxd":599
  * 
  * cpdef inline bool eq_exp(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _eq_exp(&first, &second)             # <<<<<<<<<<<<<<
@@ -7585,7 +7054,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_eq_exp(struct _cydecimal __pyx_v
   __pyx_r = _eq_exp((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":582
+  /* "cynum.pxd":598
  * 
  * 
  * cpdef inline bool eq_exp(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7642,19 +7111,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 582, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 598, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 582, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 598, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("eq_exp", 1, 2, 2, 1); __PYX_ERR(0, 582, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("eq_exp", 1, 2, 2, 1); __PYX_ERR(2, 598, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "eq_exp") < 0)) __PYX_ERR(0, 582, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "eq_exp") < 0)) __PYX_ERR(2, 598, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7662,12 +7131,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 582, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 582, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 598, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 598, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("eq_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 582, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("eq_exp", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 598, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.eq_exp", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7689,7 +7158,7 @@ static PyObject *__pyx_pf_5tests_5cynum_34eq_exp(CYTHON_UNUSED PyObject *__pyx_s
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("eq_exp", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_eq_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 582, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_eq_exp(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 598, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7706,7 +7175,7 @@ static PyObject *__pyx_pf_5tests_5cynum_34eq_exp(CYTHON_UNUSED PyObject *__pyx_s
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":585
+/* "cynum.pxd":601
  *     return _eq_exp(&first, &second)
  * 
  * cpdef inline bool true_eq(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7724,7 +7193,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_eq(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second, CYTHON_UNUSED int __pyx_skip_dispatch) {
   bool __pyx_r;
 
-  /* "tests/cynum.pxd":586
+  /* "cynum.pxd":602
  * 
  * cpdef inline bool true_eq(_cydecimal first, _cydecimal second) noexcept nogil:
  *     return _true_eq(&first, &second)             # <<<<<<<<<<<<<<
@@ -7734,7 +7203,7 @@ static CYTHON_INLINE bool __pyx_f_5tests_5cynum_true_eq(struct _cydecimal __pyx_
   __pyx_r = _true_eq((&__pyx_v_first), (&__pyx_v_second));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":585
+  /* "cynum.pxd":601
  *     return _eq_exp(&first, &second)
  * 
  * cpdef inline bool true_eq(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -7791,19 +7260,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 585, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 601, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 585, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 601, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("true_eq", 1, 2, 2, 1); __PYX_ERR(0, 585, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("true_eq", 1, 2, 2, 1); __PYX_ERR(2, 601, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_eq") < 0)) __PYX_ERR(0, 585, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "true_eq") < 0)) __PYX_ERR(2, 601, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7811,12 +7280,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 585, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 585, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 601, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 601, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("true_eq", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 585, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("true_eq", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 601, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.true_eq", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -7838,7 +7307,7 @@ static PyObject *__pyx_pf_5tests_5cynum_36true_eq(CYTHON_UNUSED PyObject *__pyx_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("true_eq", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_eq(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 585, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_5tests_5cynum_true_eq(__pyx_v_first, __pyx_v_second, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 601, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -7855,7 +7324,7 @@ static PyObject *__pyx_pf_5tests_5cynum_36true_eq(CYTHON_UNUSED PyObject *__pyx_
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":588
+/* "cynum.pxd":604
  *     return _true_eq(&first, &second)
  * 
  * cpdef inline dict add_decimals(_cydecimal first, _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -7879,7 +7348,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_add_decimals(struct _cydeci
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("add_decimals", 0);
 
-  /* "tests/cynum.pxd":589
+  /* "cynum.pxd":605
  * 
  * cpdef inline dict add_decimals(_cydecimal first, _cydecimal second) noexcept:
  *     return _format_decimal(_add_decimals(first, second))             # <<<<<<<<<<<<<<
@@ -7887,13 +7356,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_add_decimals(struct _cydeci
  * cpdef inline dict subtract_decimals(_cydecimal first, _cydecimal second) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_add_decimals(__pyx_v_first, __pyx_v_second)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 589, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__add_decimals(__pyx_v_first, __pyx_v_second)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 605, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":588
+  /* "cynum.pxd":604
  *     return _true_eq(&first, &second)
  * 
  * cpdef inline dict add_decimals(_cydecimal first, _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -7956,19 +7425,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 588, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 604, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 588, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 604, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("add_decimals", 1, 2, 2, 1); __PYX_ERR(0, 588, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("add_decimals", 1, 2, 2, 1); __PYX_ERR(2, 604, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "add_decimals") < 0)) __PYX_ERR(0, 588, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "add_decimals") < 0)) __PYX_ERR(2, 604, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -7976,12 +7445,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 588, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 588, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 604, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 604, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("add_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 588, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("add_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 604, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.add_decimals", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -8003,7 +7472,7 @@ static PyObject *__pyx_pf_5tests_5cynum_38add_decimals(CYTHON_UNUSED PyObject *_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("add_decimals", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_add_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 588, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_add_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 604, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8020,7 +7489,7 @@ static PyObject *__pyx_pf_5tests_5cynum_38add_decimals(CYTHON_UNUSED PyObject *_
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":591
+/* "cynum.pxd":607
  *     return _format_decimal(_add_decimals(first, second))
  * 
  * cpdef inline dict subtract_decimals(_cydecimal first, _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -8045,19 +7514,19 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_subtract_decimals(struct _c
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("subtract_decimals", 0);
 
-  /* "tests/cynum.pxd":592
+  /* "cynum.pxd":608
  * 
  * cpdef inline dict subtract_decimals(_cydecimal first, _cydecimal second) noexcept:
  *     cdef dict i = _format_decimal(_subtract_decimals(first, second))             # <<<<<<<<<<<<<<
  * 
  *     return i
  */
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_subtract_decimals(__pyx_v_first, __pyx_v_second)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 592, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__subtract_decimals(__pyx_v_first, __pyx_v_second)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 608, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_i = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "tests/cynum.pxd":594
+  /* "cynum.pxd":610
  *     cdef dict i = _format_decimal(_subtract_decimals(first, second))
  * 
  *     return i             # <<<<<<<<<<<<<<
@@ -8069,7 +7538,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_subtract_decimals(struct _c
   __pyx_r = __pyx_v_i;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":591
+  /* "cynum.pxd":607
  *     return _format_decimal(_add_decimals(first, second))
  * 
  * cpdef inline dict subtract_decimals(_cydecimal first, _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -8133,19 +7602,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 591, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 607, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 591, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 607, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("subtract_decimals", 1, 2, 2, 1); __PYX_ERR(0, 591, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("subtract_decimals", 1, 2, 2, 1); __PYX_ERR(2, 607, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "subtract_decimals") < 0)) __PYX_ERR(0, 591, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "subtract_decimals") < 0)) __PYX_ERR(2, 607, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -8153,12 +7622,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 591, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 591, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 607, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 607, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("subtract_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 591, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("subtract_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 607, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.subtract_decimals", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -8180,7 +7649,7 @@ static PyObject *__pyx_pf_5tests_5cynum_40subtract_decimals(CYTHON_UNUSED PyObje
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("subtract_decimals", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_subtract_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 591, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_subtract_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 607, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8197,7 +7666,7 @@ static PyObject *__pyx_pf_5tests_5cynum_40subtract_decimals(CYTHON_UNUSED PyObje
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":596
+/* "cynum.pxd":612
  *     return i
  * 
  * cpdef inline iterable_t n_precision(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8209,7 +7678,7 @@ static PyObject *__pyx_pw_5tests_5cynum_43n_precision(PyObject *__pyx_self, PyOb
 static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum_n_precision(struct _cydecimal const __pyx_v_first, CYTHON_UNUSED int __pyx_skip_dispatch) {
   iterable_t __pyx_r;
 
-  /* "tests/cynum.pxd":597
+  /* "cynum.pxd":613
  * 
  * cpdef inline iterable_t n_precision(const _cydecimal first) noexcept nogil:
  *     return _n_precision(&first)             # <<<<<<<<<<<<<<
@@ -8219,7 +7688,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum_n_precision(struct _cydeci
   __pyx_r = _n_precision((&__pyx_v_first));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":596
+  /* "cynum.pxd":612
  *     return i
  * 
  * cpdef inline iterable_t n_precision(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8244,7 +7713,7 @@ static PyObject *__pyx_pw_5tests_5cynum_43n_precision(PyObject *__pyx_self, PyOb
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("n_precision (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 596, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 612, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8268,7 +7737,7 @@ static PyObject *__pyx_pf_5tests_5cynum_42n_precision(CYTHON_UNUSED PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("n_precision", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_precision(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 596, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_precision(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 612, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8285,7 +7754,7 @@ static PyObject *__pyx_pf_5tests_5cynum_42n_precision(CYTHON_UNUSED PyObject *__
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":599
+/* "cynum.pxd":615
  *     return _n_precision(&first)
  * 
  * cpdef inline iterable_t n_digits(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8297,7 +7766,7 @@ static PyObject *__pyx_pw_5tests_5cynum_45n_digits(PyObject *__pyx_self, PyObjec
 static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum_n_digits(struct _cydecimal const __pyx_v_first, CYTHON_UNUSED int __pyx_skip_dispatch) {
   iterable_t __pyx_r;
 
-  /* "tests/cynum.pxd":600
+  /* "cynum.pxd":616
  * 
  * cpdef inline iterable_t n_digits(const _cydecimal first) noexcept nogil:
  *     return _n_digits(&first)             # <<<<<<<<<<<<<<
@@ -8307,7 +7776,7 @@ static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum_n_digits(struct _cydecimal
   __pyx_r = _n_digits((&__pyx_v_first));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":599
+  /* "cynum.pxd":615
  *     return _n_precision(&first)
  * 
  * cpdef inline iterable_t n_digits(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8332,7 +7801,7 @@ static PyObject *__pyx_pw_5tests_5cynum_45n_digits(PyObject *__pyx_self, PyObjec
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("n_digits (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 599, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 615, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8356,7 +7825,7 @@ static PyObject *__pyx_pf_5tests_5cynum_44n_digits(CYTHON_UNUSED PyObject *__pyx
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("n_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_digits(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 599, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_digits(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 615, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8373,7 +7842,7 @@ static PyObject *__pyx_pf_5tests_5cynum_44n_digits(CYTHON_UNUSED PyObject *__pyx
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":602
+/* "cynum.pxd":618
  *     return _n_digits(&first)
  * 
  * cpdef inline iterable_t n_whole_digits(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8385,17 +7854,17 @@ static PyObject *__pyx_pw_5tests_5cynum_47n_whole_digits(PyObject *__pyx_self, P
 static CYTHON_INLINE iterable_t __pyx_f_5tests_5cynum_n_whole_digits(struct _cydecimal const __pyx_v_first, CYTHON_UNUSED int __pyx_skip_dispatch) {
   iterable_t __pyx_r;
 
-  /* "tests/cynum.pxd":603
+  /* "cynum.pxd":619
  * 
  * cpdef inline iterable_t n_whole_digits(const _cydecimal first) noexcept nogil:
  *     return _n_whole_digits(&first)             # <<<<<<<<<<<<<<
  * 
- * cpdef inline str dec_2_str(_cydecimal dec) noexcept:
+ * cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:
  */
   __pyx_r = _n_whole_digits((&__pyx_v_first));
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":602
+  /* "cynum.pxd":618
  *     return _n_digits(&first)
  * 
  * cpdef inline iterable_t n_whole_digits(const _cydecimal first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8420,7 +7889,7 @@ static PyObject *__pyx_pw_5tests_5cynum_47n_whole_digits(PyObject *__pyx_self, P
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("n_whole_digits (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 602, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 618, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8444,7 +7913,7 @@ static PyObject *__pyx_pf_5tests_5cynum_46n_whole_digits(CYTHON_UNUSED PyObject 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("n_whole_digits", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_whole_digits(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 602, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_iterable_t(__pyx_f_5tests_5cynum_n_whole_digits(__pyx_v_first, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 618, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8461,222 +7930,52 @@ static PyObject *__pyx_pf_5tests_5cynum_46n_whole_digits(CYTHON_UNUSED PyObject 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":605
+/* "cynum.pxd":621
  *     return _n_whole_digits(&first)
  * 
- * cpdef inline str dec_2_str(_cydecimal dec) noexcept:             # <<<<<<<<<<<<<<
- *     s = (_dec_2_str(&dec)).decode()
- *     truth  =  s[0] == '-'
+ * cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:             # <<<<<<<<<<<<<<
+ *     return _dec_2_str(&dec)
+ * 
  */
 
 static PyObject *__pyx_pw_5tests_5cynum_49dec_2_str(PyObject *__pyx_self, PyObject *__pyx_arg_dec); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_dec_2_str(struct _cydecimal __pyx_v_dec, CYTHON_UNUSED int __pyx_skip_dispatch) {
-  PyObject *__pyx_v_s = 0;
-  PyObject *__pyx_v_truth = 0;
-  PyObject *__pyx_v_ind = 0;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
-  char const *__pyx_t_1;
-  PyObject *__pyx_t_2 = NULL;
-  PyObject *__pyx_t_3 = NULL;
-  PyObject *__pyx_t_4 = NULL;
-  int __pyx_t_5;
-  int __pyx_t_6;
+  PyObject *__pyx_t_1 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("dec_2_str", 0);
 
-  /* "tests/cynum.pxd":606
+  /* "cynum.pxd":622
  * 
- * cpdef inline str dec_2_str(_cydecimal dec) noexcept:
- *     s = (_dec_2_str(&dec)).decode()             # <<<<<<<<<<<<<<
- *     truth  =  s[0] == '-'
- *     ind = s.index('E')
- */
-  __pyx_t_1 = _dec_2_str((&__pyx_v_dec));
-  __pyx_t_2 = __Pyx_decode_c_string(__pyx_t_1, 0, strlen(__pyx_t_1), NULL, NULL, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 606, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __Pyx_INCREF(__pyx_t_2);
-  __pyx_v_s = __pyx_t_2;
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-
-  /* "tests/cynum.pxd":607
- * cpdef inline str dec_2_str(_cydecimal dec) noexcept:
- *     s = (_dec_2_str(&dec)).decode()
- *     truth  =  s[0] == '-'             # <<<<<<<<<<<<<<
- *     ind = s.index('E')
- *     s = s[:ind].lstrip('0')+s[ind:]
- */
-  __pyx_t_2 = __Pyx_GetItemInt(__pyx_v_s, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 607, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = PyObject_RichCompare(__pyx_t_2, __pyx_kp_u__4, Py_EQ); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 607, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_v_truth = __pyx_t_3;
-  __pyx_t_3 = 0;
-
-  /* "tests/cynum.pxd":608
- *     s = (_dec_2_str(&dec)).decode()
- *     truth  =  s[0] == '-'
- *     ind = s.index('E')             # <<<<<<<<<<<<<<
- *     s = s[:ind].lstrip('0')+s[ind:]
- *     if truth:
- */
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_s, __pyx_n_s_index); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 608, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = NULL;
-  __pyx_t_5 = 0;
-  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_2))) {
-    __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_2);
-    if (likely(__pyx_t_4)) {
-      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_2);
-      __Pyx_INCREF(__pyx_t_4);
-      __Pyx_INCREF(function);
-      __Pyx_DECREF_SET(__pyx_t_2, function);
-      __pyx_t_5 = 1;
-    }
-  }
-  {
-    PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_n_u_E};
-    __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_2, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
-    __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 608, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  }
-  __pyx_v_ind = __pyx_t_3;
-  __pyx_t_3 = 0;
-
-  /* "tests/cynum.pxd":609
- *     truth  =  s[0] == '-'
- *     ind = s.index('E')
- *     s = s[:ind].lstrip('0')+s[ind:]             # <<<<<<<<<<<<<<
- *     if truth:
- *         s = '-'+(s[1:].lstrip('0'))
- */
-  __pyx_t_2 = __Pyx_PyObject_GetSlice(__pyx_v_s, 0, 0, NULL, &__pyx_v_ind, NULL, 0, 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 609, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_lstrip); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 609, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = NULL;
-  __pyx_t_5 = 0;
-  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_4))) {
-    __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_4);
-    if (likely(__pyx_t_2)) {
-      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
-      __Pyx_INCREF(__pyx_t_2);
-      __Pyx_INCREF(function);
-      __Pyx_DECREF_SET(__pyx_t_4, function);
-      __pyx_t_5 = 1;
-    }
-  }
-  {
-    PyObject *__pyx_callargs[2] = {__pyx_t_2, __pyx_kp_u_0};
-    __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
-    __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 609, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  }
-  __pyx_t_4 = __Pyx_PyObject_GetSlice(__pyx_v_s, 0, 0, &__pyx_v_ind, NULL, NULL, 0, 0, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 609, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_2 = PyNumber_Add(__pyx_t_3, __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 609, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __Pyx_DECREF_SET(__pyx_v_s, __pyx_t_2);
-  __pyx_t_2 = 0;
-
-  /* "tests/cynum.pxd":610
- *     ind = s.index('E')
- *     s = s[:ind].lstrip('0')+s[ind:]
- *     if truth:             # <<<<<<<<<<<<<<
- *         s = '-'+(s[1:].lstrip('0'))
- *     return s
- */
-  __pyx_t_6 = __Pyx_PyObject_IsTrue(__pyx_v_truth); if (unlikely((__pyx_t_6 < 0))) __PYX_ERR(0, 610, __pyx_L1_error)
-  if (__pyx_t_6) {
-
-    /* "tests/cynum.pxd":611
- *     s = s[:ind].lstrip('0')+s[ind:]
- *     if truth:
- *         s = '-'+(s[1:].lstrip('0'))             # <<<<<<<<<<<<<<
- *     return s
- * 
- */
-    __pyx_t_4 = __Pyx_PyObject_GetSlice(__pyx_v_s, 1, 0, NULL, NULL, &__pyx_slice__5, 1, 0, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 611, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_lstrip); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 611, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = NULL;
-    __pyx_t_5 = 0;
-    if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_3))) {
-      __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_3);
-      if (likely(__pyx_t_4)) {
-        PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
-        __Pyx_INCREF(__pyx_t_4);
-        __Pyx_INCREF(function);
-        __Pyx_DECREF_SET(__pyx_t_3, function);
-        __pyx_t_5 = 1;
-      }
-    }
-    {
-      PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_kp_u_0};
-      __pyx_t_2 = __Pyx_PyObject_FastCall(__pyx_t_3, __pyx_callargs+1-__pyx_t_5, 1+__pyx_t_5);
-      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 611, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    }
-    __pyx_t_3 = PyNumber_Add(__pyx_kp_u__4, __pyx_t_2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 611, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_3);
-    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __Pyx_DECREF_SET(__pyx_v_s, __pyx_t_3);
-    __pyx_t_3 = 0;
-
-    /* "tests/cynum.pxd":610
- *     ind = s.index('E')
- *     s = s[:ind].lstrip('0')+s[ind:]
- *     if truth:             # <<<<<<<<<<<<<<
- *         s = '-'+(s[1:].lstrip('0'))
- *     return s
- */
-  }
-
-  /* "tests/cynum.pxd":612
- *     if truth:
- *         s = '-'+(s[1:].lstrip('0'))
- *     return s             # <<<<<<<<<<<<<<
+ * cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:
+ *     return _dec_2_str(&dec)             # <<<<<<<<<<<<<<
  * 
  * cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
  */
   __Pyx_XDECREF(__pyx_r);
-  if (!(likely(PyUnicode_CheckExact(__pyx_v_s))||((__pyx_v_s) == Py_None) || __Pyx_RaiseUnexpectedTypeError("unicode", __pyx_v_s))) __PYX_ERR(0, 612, __pyx_L1_error)
-  __Pyx_INCREF(__pyx_v_s);
-  __pyx_r = ((PyObject*)__pyx_v_s);
+  __pyx_t_1 = __Pyx_PyBytes_FromString(_dec_2_str((&__pyx_v_dec))); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 622, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":605
+  /* "cynum.pxd":621
  *     return _n_whole_digits(&first)
  * 
- * cpdef inline str dec_2_str(_cydecimal dec) noexcept:             # <<<<<<<<<<<<<<
- *     s = (_dec_2_str(&dec)).decode()
- *     truth  =  s[0] == '-'
+ * cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:             # <<<<<<<<<<<<<<
+ *     return _dec_2_str(&dec)
+ * 
  */
 
   /* function exit code */
   __pyx_L1_error:;
-  __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_XDECREF(__pyx_t_3);
-  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_1);
   __Pyx_AddTraceback("tests.cynum.dec_2_str", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
-  __Pyx_XDECREF(__pyx_v_s);
-  __Pyx_XDECREF(__pyx_v_truth);
-  __Pyx_XDECREF(__pyx_v_ind);
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -8694,7 +7993,7 @@ static PyObject *__pyx_pw_5tests_5cynum_49dec_2_str(PyObject *__pyx_self, PyObje
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("dec_2_str (wrapper)", 0);
   assert(__pyx_arg_dec); {
-    __pyx_v_dec = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_dec); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 605, __pyx_L3_error)
+    __pyx_v_dec = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_dec); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 621, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8718,7 +8017,7 @@ static PyObject *__pyx_pf_5tests_5cynum_48dec_2_str(CYTHON_UNUSED PyObject *__py
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("dec_2_str", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_dec_2_str(__pyx_v_dec, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 605, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_dec_2_str(__pyx_v_dec, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 621, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8735,8 +8034,8 @@ static PyObject *__pyx_pf_5tests_5cynum_48dec_2_str(CYTHON_UNUSED PyObject *__py
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":614
- *     return s
+/* "cynum.pxd":624
+ *     return _dec_2_str(&dec)
  * 
  * cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:             # <<<<<<<<<<<<<<
  *     _printf_dec(&dec)
@@ -8746,7 +8045,7 @@ static PyObject *__pyx_pf_5tests_5cynum_48dec_2_str(CYTHON_UNUSED PyObject *__py
 static PyObject *__pyx_pw_5tests_5cynum_51printf_dec(PyObject *__pyx_self, PyObject *__pyx_arg_dec); /*proto*/
 static CYTHON_INLINE void __pyx_f_5tests_5cynum_printf_dec(struct _cydecimal const __pyx_v_dec, CYTHON_UNUSED int __pyx_skip_dispatch) {
 
-  /* "tests/cynum.pxd":615
+  /* "cynum.pxd":625
  * 
  * cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
  *     _printf_dec(&dec)             # <<<<<<<<<<<<<<
@@ -8755,8 +8054,8 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum_printf_dec(struct _cydecimal con
  */
   _printf_dec((&__pyx_v_dec));
 
-  /* "tests/cynum.pxd":614
- *     return s
+  /* "cynum.pxd":624
+ *     return _dec_2_str(&dec)
  * 
  * cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:             # <<<<<<<<<<<<<<
  *     _printf_dec(&dec)
@@ -8778,7 +8077,7 @@ static PyObject *__pyx_pw_5tests_5cynum_51printf_dec(PyObject *__pyx_self, PyObj
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("printf_dec (wrapper)", 0);
   assert(__pyx_arg_dec); {
-    __pyx_v_dec = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_dec); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 614, __pyx_L3_error)
+    __pyx_v_dec = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_dec); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 624, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8802,7 +8101,7 @@ static PyObject *__pyx_pf_5tests_5cynum_50printf_dec(CYTHON_UNUSED PyObject *__p
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("printf_dec", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_void_to_None(__pyx_f_5tests_5cynum_printf_dec(__pyx_v_dec, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 614, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_void_to_None(__pyx_f_5tests_5cynum_printf_dec(__pyx_v_dec, 0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 624, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8819,7 +8118,7 @@ static PyObject *__pyx_pf_5tests_5cynum_50printf_dec(CYTHON_UNUSED PyObject *__p
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":617
+/* "cynum.pxd":627
  *     _printf_dec(&dec)
  * 
  * cpdef inline dict square_decimal(const _cydecimal first) noexcept:             # <<<<<<<<<<<<<<
@@ -8837,7 +8136,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_square_decimal(struct _cyde
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("square_decimal", 0);
 
-  /* "tests/cynum.pxd":618
+  /* "cynum.pxd":628
  * 
  * cpdef inline dict square_decimal(const _cydecimal first) noexcept:
  *     return _format_decimal(_square_decimal(&first))             # <<<<<<<<<<<<<<
@@ -8845,13 +8144,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_square_decimal(struct _cyde
  * cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_square_decimal((&__pyx_v_first))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 618, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__square_decimal((&__pyx_v_first))); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 628, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":617
+  /* "cynum.pxd":627
  *     _printf_dec(&dec)
  * 
  * cpdef inline dict square_decimal(const _cydecimal first) noexcept:             # <<<<<<<<<<<<<<
@@ -8882,7 +8181,7 @@ static PyObject *__pyx_pw_5tests_5cynum_53square_decimal(PyObject *__pyx_self, P
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("square_decimal (wrapper)", 0);
   assert(__pyx_arg_first); {
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 617, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(__pyx_arg_first); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 627, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8906,7 +8205,7 @@ static PyObject *__pyx_pf_5tests_5cynum_52square_decimal(CYTHON_UNUSED PyObject 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("square_decimal", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_square_decimal(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 617, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_square_decimal(__pyx_v_first, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 627, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8923,7 +8222,7 @@ static PyObject *__pyx_pf_5tests_5cynum_52square_decimal(CYTHON_UNUSED PyObject 
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":620
+/* "cynum.pxd":630
  *     return _format_decimal(_square_decimal(&first))
  * 
  * cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -8947,7 +8246,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_mult_decimals(struct _cydec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("mult_decimals", 0);
 
-  /* "tests/cynum.pxd":621
+  /* "cynum.pxd":631
  * 
  * cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
  *     return _format_decimal(_mult_decimals(&first, &second))             # <<<<<<<<<<<<<<
@@ -8955,13 +8254,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_mult_decimals(struct _cydec
  * cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_mult_decimals((&__pyx_v_first), (&__pyx_v_second))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 621, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__mult_decimals((&__pyx_v_first), (&__pyx_v_second))); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 631, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":620
+  /* "cynum.pxd":630
  *     return _format_decimal(_square_decimal(&first))
  * 
  * cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:             # <<<<<<<<<<<<<<
@@ -9024,19 +8323,19 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 620, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 630, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 620, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 630, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("mult_decimals", 1, 2, 2, 1); __PYX_ERR(0, 620, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("mult_decimals", 1, 2, 2, 1); __PYX_ERR(2, 630, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "mult_decimals") < 0)) __PYX_ERR(0, 620, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "mult_decimals") < 0)) __PYX_ERR(2, 630, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -9044,12 +8343,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 620, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 620, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 630, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 630, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("mult_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 620, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("mult_decimals", 1, 2, 2, __pyx_nargs); __PYX_ERR(2, 630, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.mult_decimals", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -9071,7 +8370,7 @@ static PyObject *__pyx_pf_5tests_5cynum_54mult_decimals(CYTHON_UNUSED PyObject *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("mult_decimals", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_mult_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 620, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_mult_decimals(__pyx_v_first, __pyx_v_second, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 630, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -9088,7 +8387,7 @@ static PyObject *__pyx_pf_5tests_5cynum_54mult_decimals(CYTHON_UNUSED PyObject *
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":623
+/* "cynum.pxd":633
  *     return _format_decimal(_mult_decimals(&first, &second))
  * 
  * cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:             # <<<<<<<<<<<<<<
@@ -9112,7 +8411,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_mult_decimal_decimal_digit(
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("mult_decimal_decimal_digit", 0);
 
-  /* "tests/cynum.pxd":624
+  /* "cynum.pxd":634
  * 
  * cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:
  *     return _format_decimal(_mult_decimal_decimal_digit(&first, &second, x))             # <<<<<<<<<<<<<<
@@ -9120,13 +8419,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_mult_decimal_decimal_digit(
  * cpdef inline dict empty_decimal() noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_mult_decimal_decimal_digit((&__pyx_v_first), (&__pyx_v_second), __pyx_v_x)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 624, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(__pyx_f_5tests_5cynum__mult_decimal_decimal_digit((&__pyx_v_first), (&__pyx_v_second), __pyx_v_x)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 634, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":623
+  /* "cynum.pxd":633
  *     return _format_decimal(_mult_decimals(&first, &second))
  * 
  * cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:             # <<<<<<<<<<<<<<
@@ -9192,26 +8491,26 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       switch (__pyx_nargs) {
         case  0:
         if (likely((values[0] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_first)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
         if (likely((values[1] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_second)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, 1); __PYX_ERR(0, 623, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, 1); __PYX_ERR(2, 633, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_GetKwValue_FASTCALL(__pyx_kwds, __pyx_kwvalues, __pyx_n_s_x)) != 0)) kw_args--;
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, 2); __PYX_ERR(0, 623, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, 2); __PYX_ERR(2, 633, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "mult_decimal_decimal_digit") < 0)) __PYX_ERR(0, 623, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "mult_decimal_decimal_digit") < 0)) __PYX_ERR(2, 633, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 3)) {
       goto __pyx_L5_argtuple_error;
@@ -9220,13 +8519,13 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
       values[2] = __Pyx_Arg_FASTCALL(__pyx_args, 2);
     }
-    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
-    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
-    __pyx_v_x = __Pyx_PyInt_As_unsigned_int(values[2]); if (unlikely((__pyx_v_x == (unsigned int)-1) && PyErr_Occurred())) __PYX_ERR(0, 623, __pyx_L3_error)
+    __pyx_v_first = __pyx_convert__from_py_struct___cydecimal(values[0]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
+    __pyx_v_second = __pyx_convert__from_py_struct___cydecimal(values[1]); if (unlikely(PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
+    __pyx_v_x = __Pyx_PyInt_As_unsigned_int(values[2]); if (unlikely((__pyx_v_x == (unsigned int)-1) && PyErr_Occurred())) __PYX_ERR(2, 633, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, __pyx_nargs); __PYX_ERR(0, 623, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("mult_decimal_decimal_digit", 1, 3, 3, __pyx_nargs); __PYX_ERR(2, 633, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("tests.cynum.mult_decimal_decimal_digit", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -9248,7 +8547,7 @@ static PyObject *__pyx_pf_5tests_5cynum_56mult_decimal_decimal_digit(CYTHON_UNUS
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("mult_decimal_decimal_digit", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_mult_decimal_decimal_digit(__pyx_v_first, __pyx_v_second, __pyx_v_x, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 623, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_mult_decimal_decimal_digit(__pyx_v_first, __pyx_v_second, __pyx_v_x, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 633, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -9265,7 +8564,7 @@ static PyObject *__pyx_pf_5tests_5cynum_56mult_decimal_decimal_digit(CYTHON_UNUS
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":626
+/* "cynum.pxd":636
  *     return _format_decimal(_mult_decimal_decimal_digit(&first, &second, x))
  * 
  * cpdef inline dict empty_decimal() noexcept:             # <<<<<<<<<<<<<<
@@ -9283,7 +8582,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_empty_decimal(CYTHON_UNUSED
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("empty_decimal", 0);
 
-  /* "tests/cynum.pxd":627
+  /* "cynum.pxd":637
  * 
  * cpdef inline dict empty_decimal() noexcept:
  *     return _format_decimal(_empty_decimal())             # <<<<<<<<<<<<<<
@@ -9291,13 +8590,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum_empty_decimal(CYTHON_UNUSED
  * cdef inline dict _format_decimal(const _cydecimal res) noexcept:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_empty_decimal()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 627, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum__format_decimal(_empty_decimal()); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 637, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":626
+  /* "cynum.pxd":636
  *     return _format_decimal(_mult_decimal_decimal_digit(&first, &second, x))
  * 
  * cpdef inline dict empty_decimal() noexcept:             # <<<<<<<<<<<<<<
@@ -9339,7 +8638,7 @@ static PyObject *__pyx_pf_5tests_5cynum_58empty_decimal(CYTHON_UNUSED PyObject *
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("empty_decimal", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_5tests_5cynum_empty_decimal(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 626, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_5tests_5cynum_empty_decimal(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 636, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -9356,7 +8655,7 @@ static PyObject *__pyx_pf_5tests_5cynum_58empty_decimal(CYTHON_UNUSED PyObject *
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":629
+/* "cynum.pxd":639
  *     return _format_decimal(_empty_decimal())
  * 
  * cdef inline dict _format_decimal(const _cydecimal res) noexcept:             # <<<<<<<<<<<<<<
@@ -9375,19 +8674,19 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum__format_decimal(struct _cyd
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_format_decimal", 0);
 
-  /* "tests/cynum.pxd":630
+  /* "cynum.pxd":640
  * 
  * cdef inline dict _format_decimal(const _cydecimal res) noexcept:
  *     cdef bytes x = res.digits[:MAX_LENGTH]             # <<<<<<<<<<<<<<
  *     return {'exp': res.exp, 'negative': res.negative, 'digits': x}
  * 
  */
-  __pyx_t_1 = __Pyx_PyBytes_FromStringAndSize(((const char*)__pyx_v_res.digits) + 0, MAX_LENGTH - 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 630, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_FromStringAndSize(((const char*)__pyx_v_res.digits) + 0, MAX_LENGTH - 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 640, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_x = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "tests/cynum.pxd":631
+  /* "cynum.pxd":641
  * cdef inline dict _format_decimal(const _cydecimal res) noexcept:
  *     cdef bytes x = res.digits[:MAX_LENGTH]
  *     return {'exp': res.exp, 'negative': res.negative, 'digits': x}             # <<<<<<<<<<<<<<
@@ -9395,22 +8694,22 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum__format_decimal(struct _cyd
  * cpdef inline void test() noexcept nogil:
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 631, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 641, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyInt_From_exponent_t(__pyx_v_res.exp); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 631, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_exponent_t(__pyx_v_res.exp); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 641, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_exp, __pyx_t_2) < 0) __PYX_ERR(0, 631, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_exp, __pyx_t_2) < 0) __PYX_ERR(2, 641, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyBool_FromLong(__pyx_v_res.negative); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 631, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBool_FromLong(__pyx_v_res.negative); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 641, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_negative, __pyx_t_2) < 0) __PYX_ERR(0, 631, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_negative, __pyx_t_2) < 0) __PYX_ERR(2, 641, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_digits, __pyx_v_x) < 0) __PYX_ERR(0, 631, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_digits, __pyx_v_x) < 0) __PYX_ERR(2, 641, __pyx_L1_error)
   __pyx_r = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "tests/cynum.pxd":629
+  /* "cynum.pxd":639
  *     return _format_decimal(_empty_decimal())
  * 
  * cdef inline dict _format_decimal(const _cydecimal res) noexcept:             # <<<<<<<<<<<<<<
@@ -9431,7 +8730,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5tests_5cynum__format_decimal(struct _cyd
   return __pyx_r;
 }
 
-/* "tests/cynum.pxd":633
+/* "cynum.pxd":643
  *     return {'exp': res.exp, 'negative': res.negative, 'digits': x}
  * 
  * cpdef inline void test() noexcept nogil:             # <<<<<<<<<<<<<<
@@ -9444,33 +8743,33 @@ static CYTHON_INLINE void __pyx_f_5tests_5cynum_test(CYTHON_UNUSED int __pyx_ski
   struct _cydecimal __pyx_v_test;
   struct _cydecimal __pyx_v_test1;
 
-  /* "tests/cynum.pxd":634
+  /* "cynum.pxd":644
  * 
  * cpdef inline void test() noexcept nogil:
  *     cdef _cydecimal test = _decimal_from_string(b'12.5712')             # <<<<<<<<<<<<<<
  *     cdef _cydecimal test1 = _decimal_from_string(b'39.19001')
  *     test = _mult_decimals(&test, &test1)
  */
-  __pyx_v_test = _decimal_from_string(((char const *)"12.5712"));
+  __pyx_v_test = __pyx_f_5tests_5cynum__decimal_from_string(((char const *)"12.5712"));
 
-  /* "tests/cynum.pxd":635
+  /* "cynum.pxd":645
  * cpdef inline void test() noexcept nogil:
  *     cdef _cydecimal test = _decimal_from_string(b'12.5712')
  *     cdef _cydecimal test1 = _decimal_from_string(b'39.19001')             # <<<<<<<<<<<<<<
  *     test = _mult_decimals(&test, &test1)
  *     # -578.996009
  */
-  __pyx_v_test1 = _decimal_from_string(((char const *)"39.19001"));
+  __pyx_v_test1 = __pyx_f_5tests_5cynum__decimal_from_string(((char const *)"39.19001"));
 
-  /* "tests/cynum.pxd":636
+  /* "cynum.pxd":646
  *     cdef _cydecimal test = _decimal_from_string(b'12.5712')
  *     cdef _cydecimal test1 = _decimal_from_string(b'39.19001')
  *     test = _mult_decimals(&test, &test1)             # <<<<<<<<<<<<<<
  *     # -578.996009
  */
-  __pyx_v_test = _mult_decimals((&__pyx_v_test), (&__pyx_v_test1));
+  __pyx_v_test = __pyx_f_5tests_5cynum__mult_decimals((&__pyx_v_test), (&__pyx_v_test1));
 
-  /* "tests/cynum.pxd":633
+  /* "cynum.pxd":643
  *     return {'exp': res.exp, 'negative': res.negative, 'digits': x}
  * 
  * cpdef inline void test() noexcept nogil:             # <<<<<<<<<<<<<<
@@ -9504,7 +8803,7 @@ static PyObject *__pyx_pf_5tests_5cynum_60test(CYTHON_UNUSED PyObject *__pyx_sel
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("test", 0);
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_void_to_None(__pyx_f_5tests_5cynum_test(0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 633, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_void_to_None(__pyx_f_5tests_5cynum_test(0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 643, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -9521,1128 +8820,223 @@ static PyObject *__pyx_pf_5tests_5cynum_60test(CYTHON_UNUSED PyObject *__pyx_sel
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":563
- *     const _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
+/* "tests/precision_mandelbrot.pyx":18
+ * cdef _cydecimal FOUR = ((_decimal_from_double(4)))
  * 
- * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- */
-
-static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_dec) {
-  char *__pyx_v_string;
-  iterable_t __pyx_v_i;
-  iterable_t __pyx_v_x;
-  iterable_t __pyx_v_temp;
-  iterable_t __pyx_v_temp2;
-  char *__pyx_r;
-  int __pyx_t_1;
-  iterable_t __pyx_t_2;
-  iterable_t __pyx_t_3;
-  iterable_t __pyx_t_4;
-
-  /* "tests/cynum.pyx":564
- * 
- * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))             # <<<<<<<<<<<<<<
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- *     if temp != 0:
- */
-  __pyx_v_string = ((char *)malloc(((MAX_LENGTH + 25) * (sizeof(char)))));
-
-  /* "tests/cynum.pyx":565
- * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2             # <<<<<<<<<<<<<<
- *     if temp != 0:
- *         temp2 = <iterable_t>floor(log10((temp))+1)
- */
-  __pyx_v_x = 0;
-  __pyx_v_temp = abs(__pyx_v_dec->exp);
-
-  /* "tests/cynum.pyx":566
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- *     if temp != 0:             # <<<<<<<<<<<<<<
- *         temp2 = <iterable_t>floor(log10((temp))+1)
- *     else:
- */
-  __pyx_t_1 = (__pyx_v_temp != 0);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":567
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- *     if temp != 0:
- *         temp2 = <iterable_t>floor(log10((temp))+1)             # <<<<<<<<<<<<<<
- *     else:
- *         temp2 = 1
- */
-    __pyx_v_temp2 = ((iterable_t)floor((log10(__pyx_v_temp) + 1.0)));
-
-    /* "tests/cynum.pyx":566
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- *     if temp != 0:             # <<<<<<<<<<<<<<
- *         temp2 = <iterable_t>floor(log10((temp))+1)
- *     else:
- */
-    goto __pyx_L3;
-  }
-
-  /* "tests/cynum.pyx":569
- *         temp2 = <iterable_t>floor(log10((temp))+1)
- *     else:
- *         temp2 = 1             # <<<<<<<<<<<<<<
- *     for i in range(MAX_LENGTH):
- *         if i == N_DIGITS:
- */
-  /*else*/ {
-    __pyx_v_temp2 = 1;
-  }
-  __pyx_L3:;
-
-  /* "tests/cynum.pyx":570
- *     else:
- *         temp2 = 1
- *     for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
- *         if i == N_DIGITS:
- *             string[i+x] = b'.'  # .
- */
-  __pyx_t_2 = MAX_LENGTH;
-  __pyx_t_3 = __pyx_t_2;
-  for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
-    __pyx_v_i = __pyx_t_4;
-
-    /* "tests/cynum.pyx":571
- *         temp2 = 1
- *     for i in range(MAX_LENGTH):
- *         if i == N_DIGITS:             # <<<<<<<<<<<<<<
- *             string[i+x] = b'.'  # .
- *             postincrement(x)
- */
-    __pyx_t_1 = (__pyx_v_i == N_DIGITS);
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":572
- *     for i in range(MAX_LENGTH):
- *         if i == N_DIGITS:
- *             string[i+x] = b'.'  # .             # <<<<<<<<<<<<<<
- *             postincrement(x)
- *         if dec.digits[i] >= 0:
- */
-      (__pyx_v_string[(__pyx_v_i + __pyx_v_x)]) = '.';
-
-      /* "tests/cynum.pyx":573
- *         if i == N_DIGITS:
- *             string[i+x] = b'.'  # .
- *             postincrement(x)             # <<<<<<<<<<<<<<
- *         if dec.digits[i] >= 0:
- *             string[i+x] = dec.digits[i]+ZERO
- */
-      (void)((__pyx_v_x++));
-
-      /* "tests/cynum.pyx":571
- *         temp2 = 1
- *     for i in range(MAX_LENGTH):
- *         if i == N_DIGITS:             # <<<<<<<<<<<<<<
- *             string[i+x] = b'.'  # .
- *             postincrement(x)
- */
-    }
-
-    /* "tests/cynum.pyx":574
- *             string[i+x] = b'.'  # .
- *             postincrement(x)
- *         if dec.digits[i] >= 0:             # <<<<<<<<<<<<<<
- *             string[i+x] = dec.digits[i]+ZERO
- *             pass
- */
-    __pyx_t_1 = ((__pyx_v_dec->digits[__pyx_v_i]) >= 0);
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":575
- *             postincrement(x)
- *         if dec.digits[i] >= 0:
- *             string[i+x] = dec.digits[i]+ZERO             # <<<<<<<<<<<<<<
- *             pass
- *         else:
- */
-      (__pyx_v_string[(__pyx_v_i + __pyx_v_x)]) = ((__pyx_v_dec->digits[__pyx_v_i]) + ZERO);
-
-      /* "tests/cynum.pyx":574
- *             string[i+x] = b'.'  # .
- *             postincrement(x)
- *         if dec.digits[i] >= 0:             # <<<<<<<<<<<<<<
- *             string[i+x] = dec.digits[i]+ZERO
- *             pass
- */
-      goto __pyx_L7;
-    }
-
-    /* "tests/cynum.pyx":578
- *             pass
- *         else:
- *             string[i] = NEGATIVE             # <<<<<<<<<<<<<<
- *             postincrement(x)
- *             string[i+x] = (-(dec.digits[i]))+ZERO
- */
-    /*else*/ {
-      (__pyx_v_string[__pyx_v_i]) = NEGATIVE;
-
-      /* "tests/cynum.pyx":579
- *         else:
- *             string[i] = NEGATIVE
- *             postincrement(x)             # <<<<<<<<<<<<<<
- *             string[i+x] = (-(dec.digits[i]))+ZERO
- *     string[MAX_LENGTH+x] = CAPITAL_E # E
- */
-      (void)((__pyx_v_x++));
-
-      /* "tests/cynum.pyx":580
- *             string[i] = NEGATIVE
- *             postincrement(x)
- *             string[i+x] = (-(dec.digits[i]))+ZERO             # <<<<<<<<<<<<<<
- *     string[MAX_LENGTH+x] = CAPITAL_E # E
- *     postincrement(x)
- */
-      (__pyx_v_string[(__pyx_v_i + __pyx_v_x)]) = ((-(__pyx_v_dec->digits[__pyx_v_i])) + ZERO);
-    }
-    __pyx_L7:;
-  }
-
-  /* "tests/cynum.pyx":581
- *             postincrement(x)
- *             string[i+x] = (-(dec.digits[i]))+ZERO
- *     string[MAX_LENGTH+x] = CAPITAL_E # E             # <<<<<<<<<<<<<<
- *     postincrement(x)
- *     if temp != 0:
- */
-  (__pyx_v_string[(MAX_LENGTH + __pyx_v_x)]) = CAPITAL_E;
-
-  /* "tests/cynum.pyx":582
- *             string[i+x] = (-(dec.digits[i]))+ZERO
- *     string[MAX_LENGTH+x] = CAPITAL_E # E
- *     postincrement(x)             # <<<<<<<<<<<<<<
- *     if temp != 0:
- *         if dec.exp < 0:
- */
-  (void)((__pyx_v_x++));
-
-  /* "tests/cynum.pyx":583
- *     string[MAX_LENGTH+x] = CAPITAL_E # E
- *     postincrement(x)
- *     if temp != 0:             # <<<<<<<<<<<<<<
- *         if dec.exp < 0:
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- */
-  __pyx_t_1 = (__pyx_v_temp != 0);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":584
- *     postincrement(x)
- *     if temp != 0:
- *         if dec.exp < 0:             # <<<<<<<<<<<<<<
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- *             postincrement(x)
- */
-    __pyx_t_1 = (__pyx_v_dec->exp < 0);
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":585
- *     if temp != 0:
- *         if dec.exp < 0:
- *             string[MAX_LENGTH+x] = NEGATIVE  # -             # <<<<<<<<<<<<<<
- *             postincrement(x)
- *         for i in range(temp2):  # n of digits
- */
-      (__pyx_v_string[(MAX_LENGTH + __pyx_v_x)]) = NEGATIVE;
-
-      /* "tests/cynum.pyx":586
- *         if dec.exp < 0:
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- *             postincrement(x)             # <<<<<<<<<<<<<<
- *         for i in range(temp2):  # n of digits
- *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO
- */
-      (void)((__pyx_v_x++));
-
-      /* "tests/cynum.pyx":584
- *     postincrement(x)
- *     if temp != 0:
- *         if dec.exp < 0:             # <<<<<<<<<<<<<<
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- *             postincrement(x)
- */
-    }
-
-    /* "tests/cynum.pyx":587
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- *             postincrement(x)
- *         for i in range(temp2):  # n of digits             # <<<<<<<<<<<<<<
- *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO
- *             temp = <iterable_t>temp//10
- */
-    __pyx_t_2 = __pyx_v_temp2;
-    __pyx_t_3 = __pyx_t_2;
-    for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
-      __pyx_v_i = __pyx_t_4;
-
-      /* "tests/cynum.pyx":588
- *             postincrement(x)
- *         for i in range(temp2):  # n of digits
- *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO             # <<<<<<<<<<<<<<
- *             temp = <iterable_t>temp//10
- *     else:
- */
-      (__pyx_v_string[((MAX_LENGTH + __pyx_v_x) + __pyx_v_i)]) = ((__pyx_v_temp % 10) + ZERO);
-
-      /* "tests/cynum.pyx":589
- *         for i in range(temp2):  # n of digits
- *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO
- *             temp = <iterable_t>temp//10             # <<<<<<<<<<<<<<
- *     else:
- *         string[MAX_LENGTH+x] = ZERO  # set to zero
- */
-      __pyx_v_temp = (((iterable_t)__pyx_v_temp) / 10);
-    }
-
-    /* "tests/cynum.pyx":583
- *     string[MAX_LENGTH+x] = CAPITAL_E # E
- *     postincrement(x)
- *     if temp != 0:             # <<<<<<<<<<<<<<
- *         if dec.exp < 0:
- *             string[MAX_LENGTH+x] = NEGATIVE  # -
- */
-    goto __pyx_L8;
-  }
-
-  /* "tests/cynum.pyx":591
- *             temp = <iterable_t>temp//10
- *     else:
- *         string[MAX_LENGTH+x] = ZERO  # set to zero             # <<<<<<<<<<<<<<
- *     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
- *     string[MAX_LENGTH+temp2+x] = TERMINATOR
- */
-  /*else*/ {
-    (__pyx_v_string[(MAX_LENGTH + __pyx_v_x)]) = ZERO;
-  }
-  __pyx_L8:;
-
-  /* "tests/cynum.pyx":593
- *         string[MAX_LENGTH+x] = ZERO  # set to zero
- *     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
- *     string[MAX_LENGTH+temp2+x] = TERMINATOR             # <<<<<<<<<<<<<<
- *     return string
- * 
- */
-  (__pyx_v_string[((MAX_LENGTH + __pyx_v_temp2) + __pyx_v_x)]) = TERMINATOR;
-
-  /* "tests/cynum.pyx":594
- *     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
- *     string[MAX_LENGTH+temp2+x] = TERMINATOR
- *     return string             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
- */
-  __pyx_r = __pyx_v_string;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":563
- *     const _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
- * 
- * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
- *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":596
- *     return string
- * 
- * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char const *__pyx_v_first) {
-  struct _cydecimal __pyx_v_res;
-  iterable_t __pyx_v_length;
-  char *__pyx_v_strtok_backup;
-  char *__pyx_v_small;
-  char *__pyx_v_small_copy;
-  char *__pyx_v_large;
-  char *__pyx_v_large_copy;
-  char *__pyx_v_large_norm;
-  char *__pyx_v_large_norm_copy;
-  iterable_t __pyx_v_i;
-  iterable_t __pyx_v_large_len;
-  iterable_t __pyx_v_small_len;
-  struct _cydecimal __pyx_r;
-  int __pyx_t_1;
-  iterable_t __pyx_t_2;
-
-  /* "tests/cynum.pyx":598
- * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)             # <<<<<<<<<<<<<<
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))
- */
-  __pyx_v_length = strlen(__pyx_v_first);
-
-  /* "tests/cynum.pyx":599
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))             # <<<<<<<<<<<<<<
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- */
-  __pyx_v_strtok_backup = ((char *)malloc((__pyx_v_length * (sizeof(char)))));
-
-  /* "tests/cynum.pyx":600
- *     cdef iterable_t length = _strlen(first)
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))             # <<<<<<<<<<<<<<
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small
- */
-  (void)(memcpy(__pyx_v_strtok_backup, __pyx_v_first, (sizeof(__pyx_v_first))));
-
-  /* "tests/cynum.pyx":601
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)
- */
-  __pyx_v_small = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
-
-  /* "tests/cynum.pyx":602
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small             # <<<<<<<<<<<<<<
- *     small = _strrchr(first, PERIOD)
- *     small = small+1
- */
-  __pyx_v_small_copy = __pyx_v_small;
-
-  /* "tests/cynum.pyx":603
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)             # <<<<<<<<<<<<<<
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- */
-  __pyx_v_small = strrchr(__pyx_v_first, PERIOD);
-
-  /* "tests/cynum.pyx":604
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)
- *     small = small+1             # <<<<<<<<<<<<<<
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large
- */
-  __pyx_v_small = (__pyx_v_small + 1);
-
-  /* "tests/cynum.pyx":605
- *     small = _strrchr(first, PERIOD)
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')
- */
-  __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
-
-  /* "tests/cynum.pyx":606
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large             # <<<<<<<<<<<<<<
- *     large = _strtok(strtok_backup, b'.')
- *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
- */
-  __pyx_v_large_copy = __pyx_v_large;
-
-  /* "tests/cynum.pyx":607
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')             # <<<<<<<<<<<<<<
- *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_norm_copy = large_norm
- */
-  __pyx_v_large = strtok(__pyx_v_strtok_backup, ((char const *)"."));
-
-  /* "tests/cynum.pyx":608
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')
- *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
- *     cdef char* large_norm_copy = large_norm
- *     large_norm = large
- */
-  __pyx_v_large_norm = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
-
-  /* "tests/cynum.pyx":609
- *     large = _strtok(strtok_backup, b'.')
- *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_norm_copy = large_norm             # <<<<<<<<<<<<<<
- *     large_norm = large
- *     free(strtok_backup)
- */
-  __pyx_v_large_norm_copy = __pyx_v_large_norm;
-
-  /* "tests/cynum.pyx":610
- *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_norm_copy = large_norm
- *     large_norm = large             # <<<<<<<<<<<<<<
- *     free(strtok_backup)
- * 
- */
-  __pyx_v_large_norm = __pyx_v_large;
-
-  /* "tests/cynum.pyx":611
- *     cdef char* large_norm_copy = large_norm
- *     large_norm = large
- *     free(strtok_backup)             # <<<<<<<<<<<<<<
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
- */
-  free(__pyx_v_strtok_backup);
-
-  /* "tests/cynum.pyx":613
- *     free(strtok_backup)
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)             # <<<<<<<<<<<<<<
- *     if large_len > N_DIGITS:
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- */
-  __pyx_v_large_len = strlen(__pyx_v_large);
-  __pyx_v_small_len = strlen(__pyx_v_small);
-
-  /* "tests/cynum.pyx":614
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
- *     if large_len > N_DIGITS:             # <<<<<<<<<<<<<<
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- *     if (small_len+large_len) > N_DIGITS:
- */
-  __pyx_t_1 = (__pyx_v_large_len > N_DIGITS);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":615
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
- *     if large_len > N_DIGITS:
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise             # <<<<<<<<<<<<<<
- *     if (small_len+large_len) > N_DIGITS:
- *         i = N_DIGITS-large_len
- */
-    __pyx_v_large_len = N_DIGITS;
-
-    /* "tests/cynum.pyx":614
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
- *     if large_len > N_DIGITS:             # <<<<<<<<<<<<<<
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- *     if (small_len+large_len) > N_DIGITS:
- */
-  }
-
-  /* "tests/cynum.pyx":616
- *     if large_len > N_DIGITS:
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- *     if (small_len+large_len) > N_DIGITS:             # <<<<<<<<<<<<<<
- *         i = N_DIGITS-large_len
- *         if small_len > i:
- */
-  __pyx_t_1 = ((__pyx_v_small_len + __pyx_v_large_len) > N_DIGITS);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":617
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- *     if (small_len+large_len) > N_DIGITS:
- *         i = N_DIGITS-large_len             # <<<<<<<<<<<<<<
- *         if small_len > i:
- *             small_len = i # save any remaining space for the precise digits
- */
-    __pyx_v_i = (N_DIGITS - __pyx_v_large_len);
-
-    /* "tests/cynum.pyx":618
- *     if (small_len+large_len) > N_DIGITS:
- *         i = N_DIGITS-large_len
- *         if small_len > i:             # <<<<<<<<<<<<<<
- *             small_len = i # save any remaining space for the precise digits
- *     free(large_copy)
- */
-    __pyx_t_1 = (__pyx_v_small_len > __pyx_v_i);
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":619
- *         i = N_DIGITS-large_len
- *         if small_len > i:
- *             small_len = i # save any remaining space for the precise digits             # <<<<<<<<<<<<<<
- *     free(large_copy)
- *     large_len = large_len+small_len
- */
-      __pyx_v_small_len = __pyx_v_i;
-
-      /* "tests/cynum.pyx":618
- *     if (small_len+large_len) > N_DIGITS:
- *         i = N_DIGITS-large_len
- *         if small_len > i:             # <<<<<<<<<<<<<<
- *             small_len = i # save any remaining space for the precise digits
- *     free(large_copy)
- */
-    }
-
-    /* "tests/cynum.pyx":616
- *     if large_len > N_DIGITS:
- *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
- *     if (small_len+large_len) > N_DIGITS:             # <<<<<<<<<<<<<<
- *         i = N_DIGITS-large_len
- *         if small_len > i:
- */
-  }
-
-  /* "tests/cynum.pyx":620
- *         if small_len > i:
- *             small_len = i # save any remaining space for the precise digits
- *     free(large_copy)             # <<<<<<<<<<<<<<
- *     large_len = large_len+small_len
- *     large = <char*>malloc(sizeof(char)*(large_len))
- */
-  free(__pyx_v_large_copy);
-
-  /* "tests/cynum.pyx":621
- *             small_len = i # save any remaining space for the precise digits
- *     free(large_copy)
- *     large_len = large_len+small_len             # <<<<<<<<<<<<<<
- *     large = <char*>malloc(sizeof(char)*(large_len))
- *     large_copy = large
- */
-  __pyx_v_large_len = (__pyx_v_large_len + __pyx_v_small_len);
-
-  /* "tests/cynum.pyx":622
- *     free(large_copy)
- *     large_len = large_len+small_len
- *     large = <char*>malloc(sizeof(char)*(large_len))             # <<<<<<<<<<<<<<
- *     large_copy = large
- *     memcpy(&large, &large_norm, (length))
- */
-  __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_large_len)));
-
-  /* "tests/cynum.pyx":623
- *     large_len = large_len+small_len
- *     large = <char*>malloc(sizeof(char)*(large_len))
- *     large_copy = large             # <<<<<<<<<<<<<<
- *     memcpy(&large, &large_norm, (length))
- *     free(large_norm_copy)
- */
-  __pyx_v_large_copy = __pyx_v_large;
-
-  /* "tests/cynum.pyx":624
- *     large = <char*>malloc(sizeof(char)*(large_len))
- *     large_copy = large
- *     memcpy(&large, &large_norm, (length))             # <<<<<<<<<<<<<<
- *     free(large_norm_copy)
- *     _strcat(large, small)
- */
-  (void)(memcpy((&__pyx_v_large), (&__pyx_v_large_norm), __pyx_v_length));
-
-  /* "tests/cynum.pyx":625
- *     large_copy = large
- *     memcpy(&large, &large_norm, (length))
- *     free(large_norm_copy)             # <<<<<<<<<<<<<<
- *     _strcat(large, small)
- *     free(small_copy)
- */
-  free(__pyx_v_large_norm_copy);
-
-  /* "tests/cynum.pyx":626
- *     memcpy(&large, &large_norm, (length))
- *     free(large_norm_copy)
- *     _strcat(large, small)             # <<<<<<<<<<<<<<
- *     free(small_copy)
- *     res.exp = small_len  # increase precise digits
- */
-  (void)(strcat(__pyx_v_large, __pyx_v_small));
-
-  /* "tests/cynum.pyx":627
- *     free(large_norm_copy)
- *     _strcat(large, small)
- *     free(small_copy)             # <<<<<<<<<<<<<<
- *     res.exp = small_len  # increase precise digits
- *     #cdef char[MAX_LENGTH] digits = <char*>malloc(sizeof(char)*MAX_LENGTH)   # alloc
- */
-  free(__pyx_v_small_copy);
-
-  /* "tests/cynum.pyx":628
- *     _strcat(large, small)
- *     free(small_copy)
- *     res.exp = small_len  # increase precise digits             # <<<<<<<<<<<<<<
- *     #cdef char[MAX_LENGTH] digits = <char*>malloc(sizeof(char)*MAX_LENGTH)   # alloc
- *     #for i in range(MAX_LENGTH):
- */
-  __pyx_v_res.exp = __pyx_v_small_len;
-
-  /* "tests/cynum.pyx":633
- *     #    digits[i] = 0
- * 
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))             # <<<<<<<<<<<<<<
- * 
- *     for i in range((large_len)-1, -1, -1):
- */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), (MAX_LENGTH * (sizeof(char)))));
-
-  /* "tests/cynum.pyx":635
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
- * 
- *     for i in range((large_len)-1, -1, -1):             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-ZERO
- *     free(large_copy)
- */
-  for (__pyx_t_2 = (__pyx_v_large_len - 1) + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
-    __pyx_v_i = __pyx_t_2;
-
-    /* "tests/cynum.pyx":636
- * 
- *     for i in range((large_len)-1, -1, -1):
- *         res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-ZERO             # <<<<<<<<<<<<<<
- *     free(large_copy)
- * 
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((__pyx_v_large[((__pyx_v_large_len - 1) - __pyx_v_i)]) - ZERO);
-  }
-
-  /* "tests/cynum.pyx":637
- *     for i in range((large_len)-1, -1, -1):
- *         res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-ZERO
- *     free(large_copy)             # <<<<<<<<<<<<<<
- * 
- *     #memcpy(&res.digits, digits, sizeof(digits))
- */
-  free(__pyx_v_large_copy);
-
-  /* "tests/cynum.pyx":640
- * 
- *     #memcpy(&res.digits, digits, sizeof(digits))
- *     return res             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
- */
-  __pyx_r = __pyx_v_res;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":596
- *     return string
- * 
- * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":642
- *     return res
- * 
- * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char const *__pyx_v_first) {
-  struct _cydecimal __pyx_v_res;
-  iterable_t __pyx_v_length;
-  char *__pyx_v_strtok_backup;
-  char *__pyx_v_small;
-  char *__pyx_v_small_copy;
-  char *__pyx_v_large;
-  char *__pyx_v_large_copy;
-  iterable_t __pyx_v_i;
-  iterable_t __pyx_v_large_len;
-  iterable_t __pyx_v_small_len;
-  struct _cydecimal __pyx_r;
-  iterable_t __pyx_t_1;
-  iterable_t __pyx_t_2;
-  iterable_t __pyx_t_3;
-
-  /* "tests/cynum.pyx":644
- * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)             # <<<<<<<<<<<<<<
- *     res.exp = 0
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- */
-  __pyx_v_length = strlen(__pyx_v_first);
-
-  /* "tests/cynum.pyx":645
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- *     res.exp = 0             # <<<<<<<<<<<<<<
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))
- */
-  __pyx_v_res.exp = 0;
-
-  /* "tests/cynum.pyx":646
- *     cdef iterable_t length = _strlen(first)
- *     res.exp = 0
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))             # <<<<<<<<<<<<<<
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- */
-  __pyx_v_strtok_backup = ((char *)malloc((__pyx_v_length * (sizeof(char)))));
-
-  /* "tests/cynum.pyx":647
- *     res.exp = 0
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))             # <<<<<<<<<<<<<<
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small
- */
-  (void)(memcpy(__pyx_v_strtok_backup, __pyx_v_first, (sizeof(__pyx_v_first))));
-
-  /* "tests/cynum.pyx":648
- *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)
- */
-  __pyx_v_small = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
-
-  /* "tests/cynum.pyx":649
- *     memcpy(strtok_backup, first, sizeof(first))
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small             # <<<<<<<<<<<<<<
- *     small = _strrchr(first, PERIOD)
- *     small = small+1
- */
-  __pyx_v_small_copy = __pyx_v_small;
-
-  /* "tests/cynum.pyx":650
- *     cdef char* small = <char*>malloc(sizeof(char)*length)
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)             # <<<<<<<<<<<<<<
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- */
-  __pyx_v_small = strrchr(__pyx_v_first, PERIOD);
-
-  /* "tests/cynum.pyx":651
- *     cdef char* small_copy = small
- *     small = _strrchr(first, PERIOD)
- *     small = small+1             # <<<<<<<<<<<<<<
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large
- */
-  __pyx_v_small = (__pyx_v_small + 1);
-
-  /* "tests/cynum.pyx":652
- *     small = _strrchr(first, PERIOD)
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')
- */
-  __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
-
-  /* "tests/cynum.pyx":653
- *     small = small+1
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large             # <<<<<<<<<<<<<<
- *     large = _strtok(strtok_backup, b'.')
- *     free(strtok_backup)
- */
-  __pyx_v_large_copy = __pyx_v_large;
-
-  /* "tests/cynum.pyx":654
- *     cdef char* large = <char*>malloc(sizeof(char)*length)
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')             # <<<<<<<<<<<<<<
- *     free(strtok_backup)
- * 
- */
-  __pyx_v_large = strtok(__pyx_v_strtok_backup, ((char const *)"."));
-
-  /* "tests/cynum.pyx":655
- *     cdef char* large_copy = large
- *     large = _strtok(strtok_backup, b'.')
- *     free(strtok_backup)             # <<<<<<<<<<<<<<
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
- */
-  free(__pyx_v_strtok_backup);
-
-  /* "tests/cynum.pyx":657
- *     free(strtok_backup)
- * 
- *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)             # <<<<<<<<<<<<<<
- *     #cdef char[MAX_LENGTH] digits = <char*>malloc(sizeof(char)*MAX_LENGTH)   # alloc
- *     #for i in range(MAX_LENGTH):
- */
-  __pyx_v_large_len = strlen(__pyx_v_large);
-  __pyx_v_small_len = strlen(__pyx_v_small);
-
-  /* "tests/cynum.pyx":661
- *     #for i in range(MAX_LENGTH):
- *     #    digits[i] = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))             # <<<<<<<<<<<<<<
- *     _empty_char_arr(res.digits)
- *     for i in range(large_len-1, -1, -1):
- */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), (MAX_LENGTH * (sizeof(char)))));
-
-  /* "tests/cynum.pyx":662
- *     #    digits[i] = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
- *     _empty_char_arr(res.digits)             # <<<<<<<<<<<<<<
- *     for i in range(large_len-1, -1, -1):
- *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO
- */
-  _empty_char_arr(__pyx_v_res.digits);
-
-  /* "tests/cynum.pyx":663
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
- *     _empty_char_arr(res.digits)
- *     for i in range(large_len-1, -1, -1):             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO
- * 
- */
-  for (__pyx_t_1 = (__pyx_v_large_len - 1) + 1; __pyx_t_1 > -1 + 1; ) { __pyx_t_1-=1;
-    __pyx_v_i = __pyx_t_1;
-
-    /* "tests/cynum.pyx":664
- *     _empty_char_arr(res.digits)
- *     for i in range(large_len-1, -1, -1):
- *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO             # <<<<<<<<<<<<<<
- * 
- *     free(large_copy)
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((__pyx_v_large[((__pyx_v_large_len - 1) - __pyx_v_i)]) - ZERO);
-  }
-
-  /* "tests/cynum.pyx":666
- *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO
- * 
- *     free(large_copy)             # <<<<<<<<<<<<<<
- *     for i in range(small_len):
- *         res.digits[N_DIGITS+i] = small[i]-ZERO
- */
-  free(__pyx_v_large_copy);
-
-  /* "tests/cynum.pyx":667
- * 
- *     free(large_copy)
- *     for i in range(small_len):             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS+i] = small[i]-ZERO
- *     free(small_copy)
- */
-  __pyx_t_1 = __pyx_v_small_len;
-  __pyx_t_2 = __pyx_t_1;
-  for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
-    __pyx_v_i = __pyx_t_3;
-
-    /* "tests/cynum.pyx":668
- *     free(large_copy)
- *     for i in range(small_len):
- *         res.digits[N_DIGITS+i] = small[i]-ZERO             # <<<<<<<<<<<<<<
- *     free(small_copy)
- * 
- */
-    (__pyx_v_res.digits[(N_DIGITS + __pyx_v_i)]) = ((__pyx_v_small[__pyx_v_i]) - ZERO);
-  }
-
-  /* "tests/cynum.pyx":669
- *     for i in range(small_len):
- *         res.digits[N_DIGITS+i] = small[i]-ZERO
- *     free(small_copy)             # <<<<<<<<<<<<<<
- * 
- *     #memcpy(&res.digits, digits, sizeof(digits))
- */
-  free(__pyx_v_small_copy);
-
-  /* "tests/cynum.pyx":672
- * 
- *     #memcpy(&res.digits, digits, sizeof(digits))
- *     return res             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:
- */
-  __pyx_r = __pyx_v_res;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":642
- *     return res
- * 
- * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     cdef iterable_t length = _strlen(first)
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":674
- *     return res
- * 
- * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_first) {
-  iterable_t __pyx_v_i;
-  unsigned char __pyx_v_large_lim;
-  struct _cydecimal __pyx_v_res;
-  struct _cydecimal __pyx_r;
-  iterable_t __pyx_t_1;
-  iterable_t __pyx_t_2;
-  iterable_t __pyx_t_3;
+ * cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:             # <<<<<<<<<<<<<<
+ *     cdef _cydecimal temp1, nreal, real = creal, imag = cimag
+ *     cdef unsigned int n
+ */
+
+static unsigned int __pyx_f_5tests_20precision_mandelbrot_mandelbrot(struct _cydecimal const __pyx_v_creal, struct _cydecimal const __pyx_v_cimag, unsigned int const __pyx_v_maxiter) {
+  struct _cydecimal __pyx_v_temp1;
+  struct _cydecimal __pyx_v_nreal;
+  struct _cydecimal __pyx_v_real;
+  struct _cydecimal __pyx_v_imag;
+  unsigned int __pyx_v_n;
+  unsigned int __pyx_r;
+  unsigned int __pyx_t_1;
+  unsigned int __pyx_t_2;
+  unsigned int __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pyx":676
- * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     res.exp = 0
+  /* "tests/precision_mandelbrot.pyx":19
+ * 
+ * cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:
+ *     cdef _cydecimal temp1, nreal, real = creal, imag = cimag             # <<<<<<<<<<<<<<
+ *     cdef unsigned int n
+ *     for n in range(maxiter):
  */
-  __pyx_v_large_lim = ((int)floor((log10(abs(__pyx_v_first)) + 1.0)));
+  __pyx_v_real = __pyx_v_creal;
+  __pyx_v_imag = __pyx_v_cimag;
 
-  /* "tests/cynum.pyx":678
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
- *     cdef _cydecimal res
- *     res.exp = 0             # <<<<<<<<<<<<<<
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
+  /* "tests/precision_mandelbrot.pyx":21
+ *     cdef _cydecimal temp1, nreal, real = creal, imag = cimag
+ *     cdef unsigned int n
+ *     for n in range(maxiter):             # <<<<<<<<<<<<<<
+ * 
+ *         temp1 = _square_decimal(&imag)
  */
-  __pyx_v_res.exp = 0;
-
-  /* "tests/cynum.pyx":679
- *     cdef _cydecimal res
- *     res.exp = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
- */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
-
-  /* "tests/cynum.pyx":681
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
- *     for i in range(N_DIGITS):             # <<<<<<<<<<<<<<
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- */
-  __pyx_t_1 = N_DIGITS;
+  __pyx_t_1 = __pyx_v_maxiter;
   __pyx_t_2 = __pyx_t_1;
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
-    __pyx_v_i = __pyx_t_3;
+    __pyx_v_n = __pyx_t_3;
 
-    /* "tests/cynum.pyx":682
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:             # <<<<<<<<<<<<<<
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10
+    /* "tests/precision_mandelbrot.pyx":23
+ *     for n in range(maxiter):
+ * 
+ *         temp1 = _square_decimal(&imag)             # <<<<<<<<<<<<<<
+ *         nreal = _square_decimal(&real)
+ *         nreal = _add_decimals(nreal, temp1)
  */
-    __pyx_t_4 = (__pyx_v_i <= __pyx_v_large_lim);
+    __pyx_v_temp1 = __pyx_f_5tests_5cynum__square_decimal((&__pyx_v_imag));
+
+    /* "tests/precision_mandelbrot.pyx":24
+ * 
+ *         temp1 = _square_decimal(&imag)
+ *         nreal = _square_decimal(&real)             # <<<<<<<<<<<<<<
+ *         nreal = _add_decimals(nreal, temp1)
+ *         nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
+ */
+    __pyx_v_nreal = __pyx_f_5tests_5cynum__square_decimal((&__pyx_v_real));
+
+    /* "tests/precision_mandelbrot.pyx":25
+ *         temp1 = _square_decimal(&imag)
+ *         nreal = _square_decimal(&real)
+ *         nreal = _add_decimals(nreal, temp1)             # <<<<<<<<<<<<<<
+ *         nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
+ * 
+ */
+    __pyx_v_nreal = __pyx_f_5tests_5cynum__add_decimals(__pyx_v_nreal, __pyx_v_temp1);
+
+    /* "tests/precision_mandelbrot.pyx":26
+ *         nreal = _square_decimal(&real)
+ *         nreal = _add_decimals(nreal, temp1)
+ *         nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal             # <<<<<<<<<<<<<<
+ * 
+ *         temp1 = _mult_decimal_decimal_digit(&real, &imag, 2)
+ */
+    __pyx_v_nreal = __pyx_f_5tests_5cynum__add_decimals(__pyx_v_nreal, __pyx_v_creal);
+
+    /* "tests/precision_mandelbrot.pyx":28
+ *         nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
+ * 
+ *         temp1 = _mult_decimal_decimal_digit(&real, &imag, 2)             # <<<<<<<<<<<<<<
+ *         real = nreal
+ *         #if step_div!=1:
+ */
+    __pyx_v_temp1 = __pyx_f_5tests_5cynum__mult_decimal_decimal_digit((&__pyx_v_real), (&__pyx_v_imag), 2);
+
+    /* "tests/precision_mandelbrot.pyx":29
+ * 
+ *         temp1 = _mult_decimal_decimal_digit(&real, &imag, 2)
+ *         real = nreal             # <<<<<<<<<<<<<<
+ *         #if step_div!=1:
+ *         #    if not(n%step_div):
+ */
+    __pyx_v_real = __pyx_v_nreal;
+
+    /* "tests/precision_mandelbrot.pyx":40
+ *         #9223372036854775807
+ * 
+ *         temp1 = _square_decimal(&imag) # temp1 = i^2             # <<<<<<<<<<<<<<
+ *         nreal = _square_decimal(&real)
+ * 
+ */
+    __pyx_v_temp1 = __pyx_f_5tests_5cynum__square_decimal((&__pyx_v_imag));
+
+    /* "tests/precision_mandelbrot.pyx":41
+ * 
+ *         temp1 = _square_decimal(&imag) # temp1 = i^2
+ *         nreal = _square_decimal(&real)             # <<<<<<<<<<<<<<
+ * 
+ * 
+ */
+    __pyx_v_nreal = __pyx_f_5tests_5cynum__square_decimal((&__pyx_v_real));
+
+    /* "tests/precision_mandelbrot.pyx":44
+ * 
+ * 
+ *         nreal = _add_decimals(nreal,temp1) # temp2 = temp1+temp2             # <<<<<<<<<<<<<<
+ * 
+ *         if _true_greater_than(&nreal,&FOUR):
+ */
+    __pyx_v_nreal = __pyx_f_5tests_5cynum__add_decimals(__pyx_v_nreal, __pyx_v_temp1);
+
+    /* "tests/precision_mandelbrot.pyx":46
+ *         nreal = _add_decimals(nreal,temp1) # temp2 = temp1+temp2
+ * 
+ *         if _true_greater_than(&nreal,&FOUR):             # <<<<<<<<<<<<<<
+ *             return n
+ *         if _true_eq(&real, &creal):
+ */
+    __pyx_t_4 = (_true_greater_than((&__pyx_v_nreal), (&__pyx_v_5tests_20precision_mandelbrot_FOUR)) != 0);
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pyx":683
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10             # <<<<<<<<<<<<<<
- *             first = first//10
- *         else:
+      /* "tests/precision_mandelbrot.pyx":47
+ * 
+ *         if _true_greater_than(&nreal,&FOUR):
+ *             return n             # <<<<<<<<<<<<<<
+ *         if _true_eq(&real, &creal):
+ *             if _true_eq(&imag, &cimag):
  */
-      (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (abs(__pyx_v_first) % 10);
+      __pyx_r = __pyx_v_n;
+      goto __pyx_L0;
 
-      /* "tests/cynum.pyx":684
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10             # <<<<<<<<<<<<<<
- *         else:
- *             break
+      /* "tests/precision_mandelbrot.pyx":46
+ *         nreal = _add_decimals(nreal,temp1) # temp2 = temp1+temp2
+ * 
+ *         if _true_greater_than(&nreal,&FOUR):             # <<<<<<<<<<<<<<
+ *             return n
+ *         if _true_eq(&real, &creal):
  */
-      __pyx_v_first = (__pyx_v_first / 10);
-
-      /* "tests/cynum.pyx":682
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:             # <<<<<<<<<<<<<<
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10
- */
-      goto __pyx_L5;
     }
 
-    /* "tests/cynum.pyx":686
- *             first = first//10
- *         else:
- *             break             # <<<<<<<<<<<<<<
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
+    /* "tests/precision_mandelbrot.pyx":48
+ *         if _true_greater_than(&nreal,&FOUR):
+ *             return n
+ *         if _true_eq(&real, &creal):             # <<<<<<<<<<<<<<
+ *             if _true_eq(&imag, &cimag):
+ *                 return maxiter
  */
-    /*else*/ {
-      goto __pyx_L4_break;
+    __pyx_t_4 = (_true_eq((&__pyx_v_real), (&__pyx_v_creal)) != 0);
+    if (__pyx_t_4) {
+
+      /* "tests/precision_mandelbrot.pyx":49
+ *             return n
+ *         if _true_eq(&real, &creal):
+ *             if _true_eq(&imag, &cimag):             # <<<<<<<<<<<<<<
+ *                 return maxiter
+ *     return maxiter
+ */
+      __pyx_t_4 = (_true_eq((&__pyx_v_imag), (&__pyx_v_cimag)) != 0);
+      if (__pyx_t_4) {
+
+        /* "tests/precision_mandelbrot.pyx":50
+ *         if _true_eq(&real, &creal):
+ *             if _true_eq(&imag, &cimag):
+ *                 return maxiter             # <<<<<<<<<<<<<<
+ *     return maxiter
+ * 
+ */
+        __pyx_r = __pyx_v_maxiter;
+        goto __pyx_L0;
+
+        /* "tests/precision_mandelbrot.pyx":49
+ *             return n
+ *         if _true_eq(&real, &creal):
+ *             if _true_eq(&imag, &cimag):             # <<<<<<<<<<<<<<
+ *                 return maxiter
+ *     return maxiter
+ */
+      }
+
+      /* "tests/precision_mandelbrot.pyx":48
+ *         if _true_greater_than(&nreal,&FOUR):
+ *             return n
+ *         if _true_eq(&real, &creal):             # <<<<<<<<<<<<<<
+ *             if _true_eq(&imag, &cimag):
+ *                 return maxiter
+ */
     }
-    __pyx_L5:;
-  }
-  __pyx_L4_break:;
-
-  /* "tests/cynum.pyx":687
- *         else:
- *             break
- *     if first < 0:             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     return res
- */
-  __pyx_t_4 = (__pyx_v_first < 0);
-  if (__pyx_t_4) {
-
-    /* "tests/cynum.pyx":688
- *             break
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])             # <<<<<<<<<<<<<<
- *     return res
- * 
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (-(__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]));
-
-    /* "tests/cynum.pyx":687
- *         else:
- *             break
- *     if first < 0:             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     return res
- */
   }
 
-  /* "tests/cynum.pyx":689
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     return res             # <<<<<<<<<<<<<<
+  /* "tests/precision_mandelbrot.pyx":51
+ *             if _true_eq(&imag, &cimag):
+ *                 return maxiter
+ *     return maxiter             # <<<<<<<<<<<<<<
  * 
- * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:
+ * cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:
  */
-  __pyx_r = __pyx_v_res;
+  __pyx_r = __pyx_v_maxiter;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":674
- *     return res
+  /* "tests/precision_mandelbrot.pyx":18
+ * cdef _cydecimal FOUR = ((_decimal_from_double(4)))
  * 
- * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
+ * cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:             # <<<<<<<<<<<<<<
+ *     cdef _cydecimal temp1, nreal, real = creal, imag = cimag
+ *     cdef unsigned int n
  */
 
   /* function exit code */
@@ -10650,1835 +9044,941 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":691
- *     return res
+/* "tests/precision_mandelbrot.pyx":53
+ *     return maxiter
  * 
- * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
+ * cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:             # <<<<<<<<<<<<<<
+ *     _printf_dec(&stop)
+ *     _printf_dec(&start)
  */
 
-static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __pyx_v_first) {
-  iterable_t __pyx_v_i;
-  unsigned char __pyx_v_large_lim;
-  struct _cydecimal __pyx_v_res;
-  struct _cydecimal __pyx_r;
-  iterable_t __pyx_t_1;
-  iterable_t __pyx_t_2;
-  iterable_t __pyx_t_3;
-  int __pyx_t_4;
+static CYTHON_INLINE void __pyx_f_5tests_20precision_mandelbrot_linspace(_cydecimal_ptr __pyx_v_arr, unsigned int const __pyx_v_n, _cydecimal_ptr const __pyx_v_n_recip, struct _cydecimal __pyx_v_start, struct _cydecimal __pyx_v_stop) {
+  unsigned int __pyx_v_i;
+  unsigned int __pyx_t_1;
+  unsigned int __pyx_t_2;
+  unsigned int __pyx_t_3;
 
-  /* "tests/cynum.pyx":693
- * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     res.exp = 0
+  /* "tests/precision_mandelbrot.pyx":54
+ * 
+ * cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:
+ *     _printf_dec(&stop)             # <<<<<<<<<<<<<<
+ *     _printf_dec(&start)
+ *     stop = _subtract_decimals(stop,start)
  */
-  __pyx_v_large_lim = ((int)floor((log10(abs(__pyx_v_first)) + 1.0)));
+  _printf_dec((&__pyx_v_stop));
 
-  /* "tests/cynum.pyx":695
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
- *     cdef _cydecimal res
- *     res.exp = 0             # <<<<<<<<<<<<<<
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
+  /* "tests/precision_mandelbrot.pyx":55
+ * cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:
+ *     _printf_dec(&stop)
+ *     _printf_dec(&start)             # <<<<<<<<<<<<<<
+ *     stop = _subtract_decimals(stop,start)
+ *     _printf_dec(&stop)
  */
-  __pyx_v_res.exp = 0;
+  _printf_dec((&__pyx_v_start));
 
-  /* "tests/cynum.pyx":696
- *     cdef _cydecimal res
- *     res.exp = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
+  /* "tests/precision_mandelbrot.pyx":56
+ *     _printf_dec(&stop)
+ *     _printf_dec(&start)
+ *     stop = _subtract_decimals(stop,start)             # <<<<<<<<<<<<<<
+ *     _printf_dec(&stop)
+ *     stop = (_mult_decimals(&stop, n_recip))
  */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
+  __pyx_v_stop = __pyx_f_5tests_5cynum__subtract_decimals(__pyx_v_stop, __pyx_v_start);
 
-  /* "tests/cynum.pyx":698
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
- *     for i in range(N_DIGITS):             # <<<<<<<<<<<<<<
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
+  /* "tests/precision_mandelbrot.pyx":57
+ *     _printf_dec(&start)
+ *     stop = _subtract_decimals(stop,start)
+ *     _printf_dec(&stop)             # <<<<<<<<<<<<<<
+ *     stop = (_mult_decimals(&stop, n_recip))
+ *     _printf_dec(&stop)
  */
-  __pyx_t_1 = N_DIGITS;
+  _printf_dec((&__pyx_v_stop));
+
+  /* "tests/precision_mandelbrot.pyx":58
+ *     stop = _subtract_decimals(stop,start)
+ *     _printf_dec(&stop)
+ *     stop = (_mult_decimals(&stop, n_recip))             # <<<<<<<<<<<<<<
+ *     _printf_dec(&stop)
+ *     cdef unsigned int i
+ */
+  __pyx_v_stop = __pyx_f_5tests_5cynum__mult_decimals((&__pyx_v_stop), __pyx_v_n_recip);
+
+  /* "tests/precision_mandelbrot.pyx":59
+ *     _printf_dec(&stop)
+ *     stop = (_mult_decimals(&stop, n_recip))
+ *     _printf_dec(&stop)             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i
+ *     for i in range(n):
+ */
+  _printf_dec((&__pyx_v_stop));
+
+  /* "tests/precision_mandelbrot.pyx":61
+ *     _printf_dec(&stop)
+ *     cdef unsigned int i
+ *     for i in range(n):             # <<<<<<<<<<<<<<
+ *         arr[i] = start
+ *         start = _add_decimals(start, stop)
+ */
+  __pyx_t_1 = __pyx_v_n;
   __pyx_t_2 = __pyx_t_1;
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pyx":699
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:             # <<<<<<<<<<<<<<
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10
+    /* "tests/precision_mandelbrot.pyx":62
+ *     cdef unsigned int i
+ *     for i in range(n):
+ *         arr[i] = start             # <<<<<<<<<<<<<<
+ *         start = _add_decimals(start, stop)
+ * 
  */
-    __pyx_t_4 = (__pyx_v_i <= __pyx_v_large_lim);
-    if (__pyx_t_4) {
+    (__pyx_v_arr[__pyx_v_i]) = __pyx_v_start;
 
-      /* "tests/cynum.pyx":700
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10             # <<<<<<<<<<<<<<
- *             first = first//10
- *         else:
+    /* "tests/precision_mandelbrot.pyx":63
+ *     for i in range(n):
+ *         arr[i] = start
+ *         start = _add_decimals(start, stop)             # <<<<<<<<<<<<<<
+ * 
+ * cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:
  */
-      (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (abs(__pyx_v_first) % 10);
-
-      /* "tests/cynum.pyx":701
- *         if i <= large_lim:
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10             # <<<<<<<<<<<<<<
- *         else:
- *             break
- */
-      __pyx_v_first = (__pyx_v_first / 10);
-
-      /* "tests/cynum.pyx":699
- *     # test: 8204.172
- *     for i in range(N_DIGITS):
- *         if i <= large_lim:             # <<<<<<<<<<<<<<
- *             res.digits[N_DIGITS_I-i] = cabs(first)%10
- *             first = first//10
- */
-      goto __pyx_L5;
-    }
-
-    /* "tests/cynum.pyx":703
- *             first = first//10
- *         else:
- *             break             # <<<<<<<<<<<<<<
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- */
-    /*else*/ {
-      goto __pyx_L4_break;
-    }
-    __pyx_L5:;
-  }
-  __pyx_L4_break:;
-
-  /* "tests/cynum.pyx":704
- *         else:
- *             break
- *     if first < 0:             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     _normalize_digits(&res, False)
- */
-  __pyx_t_4 = (__pyx_v_first < 0);
-  if (__pyx_t_4) {
-
-    /* "tests/cynum.pyx":705
- *             break
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])             # <<<<<<<<<<<<<<
- *     _normalize_digits(&res, False)
- *     return res
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (-(__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]));
-
-    /* "tests/cynum.pyx":704
- *         else:
- *             break
- *     if first < 0:             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     _normalize_digits(&res, False)
- */
+    __pyx_v_start = __pyx_f_5tests_5cynum__add_decimals(__pyx_v_start, __pyx_v_stop);
   }
 
-  /* "tests/cynum.pyx":706
- *     if first < 0:
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     _normalize_digits(&res, False)             # <<<<<<<<<<<<<<
- *     return res
+  /* "tests/precision_mandelbrot.pyx":53
+ *     return maxiter
  * 
- */
-  _normalize_digits((&__pyx_v_res), 0);
-
-  /* "tests/cynum.pyx":707
- *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
- *     _normalize_digits(&res, False)
- *     return res             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)
- */
-  __pyx_r = __pyx_v_res;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":691
- *     return res
- * 
- * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
+ * cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:             # <<<<<<<<<<<<<<
+ *     _printf_dec(&stop)
+ *     _printf_dec(&start)
  */
 
   /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
 }
 
-/* "tests/cynum.pyx":709
- *     return res
+/* "tests/precision_mandelbrot.pyx":65
+ *         start = _add_decimals(start, stop)
  * 
- * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)             # <<<<<<<<<<<<<<
- *     cdef double temp=first
- *     cdef iterable_t i
+ * cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:             # <<<<<<<<<<<<<<
+ *     cdef list l = []
+ *     cdef unsigned int i,j
  */
 
-static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(double const __pyx_v_first) {
-  double __pyx_v_temp;
-  iterable_t __pyx_v_i;
-  unsigned char __pyx_v_large_lim;
-  struct _cydecimal __pyx_v_res;
-  struct _cydecimal __pyx_r;
-  int __pyx_t_1;
-  unsigned char __pyx_t_2;
-  unsigned char __pyx_t_3;
-  iterable_t __pyx_t_4;
+static PyObject *__pyx_f_5tests_20precision_mandelbrot_ui_2_list(unsigned int const **__pyx_v_arr, unsigned int const __pyx_v_xlen, unsigned int const __pyx_v_ylen) {
+  PyObject *__pyx_v_l = 0;
+  unsigned int __pyx_v_i;
+  unsigned int __pyx_v_j;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  unsigned int __pyx_t_2;
+  unsigned int __pyx_t_3;
+  unsigned int __pyx_t_4;
+  unsigned int __pyx_t_5;
+  unsigned int __pyx_t_6;
+  unsigned int __pyx_t_7;
+  int __pyx_t_8;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("ui_2_list", 0);
 
-  /* "tests/cynum.pyx":710
+  /* "tests/precision_mandelbrot.pyx":66
  * 
- * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)
- *     cdef double temp=first             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim
+ * cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:
+ *     cdef list l = []             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i,j
+ *     for i in range(xlen):
  */
-  __pyx_v_temp = __pyx_v_first;
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 66, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_l = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
 
-  /* "tests/cynum.pyx":714
- *     cdef unsigned char large_lim
- *     cdef _cydecimal res
- *     res.exp = 0             # <<<<<<<<<<<<<<
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     while (ceil(fabs(temp))!=fabs(temp)):
+  /* "tests/precision_mandelbrot.pyx":68
+ *     cdef list l = []
+ *     cdef unsigned int i,j
+ *     for i in range(xlen):             # <<<<<<<<<<<<<<
+ *         for j in range(ylen):
+ *             l.append(arr[i][j])
  */
-  __pyx_v_res.exp = 0;
-
-  /* "tests/cynum.pyx":715
- *     cdef _cydecimal res
- *     res.exp = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
- *     while (ceil(fabs(temp))!=fabs(temp)):
- *         postincrement(res.exp)
- */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
-
-  /* "tests/cynum.pyx":716
- *     res.exp = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     while (ceil(fabs(temp))!=fabs(temp)):             # <<<<<<<<<<<<<<
- *         postincrement(res.exp)
- *         temp = temp*10
- */
-  while (1) {
-    __pyx_t_1 = (ceil(fabs(__pyx_v_temp)) != fabs(__pyx_v_temp));
-    if (!__pyx_t_1) break;
-
-    /* "tests/cynum.pyx":717
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     while (ceil(fabs(temp))!=fabs(temp)):
- *         postincrement(res.exp)             # <<<<<<<<<<<<<<
- *         temp = temp*10
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
- */
-    (void)((__pyx_v_res.exp++));
-
-    /* "tests/cynum.pyx":718
- *     while (ceil(fabs(temp))!=fabs(temp)):
- *         postincrement(res.exp)
- *         temp = temp*10             # <<<<<<<<<<<<<<
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
- *     if (large_lim > N_DIGITS):
- */
-    __pyx_v_temp = (__pyx_v_temp * 10.0);
-  }
-
-  /* "tests/cynum.pyx":719
- *         postincrement(res.exp)
- *         temp = temp*10
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))             # <<<<<<<<<<<<<<
- *     if (large_lim > N_DIGITS):
- *         large_lim = N_DIGITS_I
- */
-  __pyx_v_large_lim = ((iterable_t)floor((log10(fabs(__pyx_v_temp)) + 1.0)));
-
-  /* "tests/cynum.pyx":720
- *         temp = temp*10
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
- *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
- *         large_lim = N_DIGITS_I
- *     # test: 8204.172
- */
-  __pyx_t_1 = (__pyx_v_large_lim > N_DIGITS);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":721
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
- *     if (large_lim > N_DIGITS):
- *         large_lim = N_DIGITS_I             # <<<<<<<<<<<<<<
- *     # test: 8204.172
- *     for i in range(large_lim):
- */
-    __pyx_v_large_lim = N_DIGITS_I;
-
-    /* "tests/cynum.pyx":720
- *         temp = temp*10
- *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
- *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
- *         large_lim = N_DIGITS_I
- *     # test: 8204.172
- */
-  }
-
-  /* "tests/cynum.pyx":723
- *         large_lim = N_DIGITS_I
- *     # test: 8204.172
- *     for i in range(large_lim):             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)
- */
-  __pyx_t_2 = __pyx_v_large_lim;
+  __pyx_t_2 = __pyx_v_xlen;
   __pyx_t_3 = __pyx_t_2;
   for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
     __pyx_v_i = __pyx_t_4;
 
-    /* "tests/cynum.pyx":724
- *     # test: 8204.172
- *     for i in range(large_lim):
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)             # <<<<<<<<<<<<<<
- *         temp = (temp*0.1)
- *     return res
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((char)fmod(__pyx_v_temp, 10.0));
-
-    /* "tests/cynum.pyx":725
- *     for i in range(large_lim):
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)             # <<<<<<<<<<<<<<
- *     return res
- * 
- */
-    __pyx_v_temp = (__pyx_v_temp * 0.1);
-  }
-
-  /* "tests/cynum.pyx":726
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)
- *     return res             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
- */
-  __pyx_r = __pyx_v_res;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":709
- *     return res
- * 
- * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)             # <<<<<<<<<<<<<<
- *     cdef double temp=first
- *     cdef iterable_t i
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":728
- *     return res
- * 
- * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)             # <<<<<<<<<<<<<<
- *     cdef double large = floor(first), small, temp
- *     small = first-large  # decimal portion
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double const __pyx_v_first) {
-  double __pyx_v_large;
-  double __pyx_v_small;
-  double __pyx_v_temp;
-  iterable_t __pyx_v_i;
-  unsigned char __pyx_v_large_lim;
-  struct _cydecimal __pyx_v_res;
-  struct _cydecimal __pyx_r;
-  int __pyx_t_1;
-  unsigned char __pyx_t_2;
-  unsigned char __pyx_t_3;
-  iterable_t __pyx_t_4;
-
-  /* "tests/cynum.pyx":729
- * 
- * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
- *     cdef double large = floor(first), small, temp             # <<<<<<<<<<<<<<
- *     small = first-large  # decimal portion
- *     temp = large
- */
-  __pyx_v_large = floor(__pyx_v_first);
-
-  /* "tests/cynum.pyx":730
- * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
- *     cdef double large = floor(first), small, temp
- *     small = first-large  # decimal portion             # <<<<<<<<<<<<<<
- *     temp = large
- *     cdef iterable_t i
- */
-  __pyx_v_small = (__pyx_v_first - __pyx_v_large);
-
-  /* "tests/cynum.pyx":731
- *     cdef double large = floor(first), small, temp
- *     small = first-large  # decimal portion
- *     temp = large             # <<<<<<<<<<<<<<
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
- */
-  __pyx_v_temp = __pyx_v_large;
-
-  /* "tests/cynum.pyx":733
- *     temp = large
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))             # <<<<<<<<<<<<<<
- *     if (large_lim > N_DIGITS):
- *         large_lim = N_DIGITS_I
- */
-  __pyx_v_large_lim = ((unsigned char)floor((log10(fabs(__pyx_v_large)) + 1.0)));
-
-  /* "tests/cynum.pyx":734
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
- *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
- *         large_lim = N_DIGITS_I
- *     cdef _cydecimal res
- */
-  __pyx_t_1 = (__pyx_v_large_lim > N_DIGITS);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":735
- *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
- *     if (large_lim > N_DIGITS):
- *         large_lim = N_DIGITS_I             # <<<<<<<<<<<<<<
- *     cdef _cydecimal res
- *     res.exp = 0
- */
-    __pyx_v_large_lim = N_DIGITS_I;
-
-    /* "tests/cynum.pyx":734
- *     cdef iterable_t i
- *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
- *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
- *         large_lim = N_DIGITS_I
- *     cdef _cydecimal res
- */
-  }
-
-  /* "tests/cynum.pyx":737
- *         large_lim = N_DIGITS_I
- *     cdef _cydecimal res
- *     res.exp = 0             # <<<<<<<<<<<<<<
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
- */
-  __pyx_v_res.exp = 0;
-
-  /* "tests/cynum.pyx":738
- *     cdef _cydecimal res
- *     res.exp = 0
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
- *     # test: 8204.172
- *     for i in range(large_lim):
- */
-  (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
-
-  /* "tests/cynum.pyx":740
- *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
- *     # test: 8204.172
- *     for i in range(large_lim):             # <<<<<<<<<<<<<<
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)
- */
-  __pyx_t_2 = __pyx_v_large_lim;
-  __pyx_t_3 = __pyx_t_2;
-  for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
-    __pyx_v_i = __pyx_t_4;
-
-    /* "tests/cynum.pyx":741
- *     # test: 8204.172
- *     for i in range(large_lim):
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)             # <<<<<<<<<<<<<<
- *         temp = (temp*0.1)
- *     temp = small
- */
-    (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((char)fmod(__pyx_v_temp, 10.0));
-
-    /* "tests/cynum.pyx":742
- *     for i in range(large_lim):
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)             # <<<<<<<<<<<<<<
- *     temp = small
- *     i = N_PRECISION
- */
-    __pyx_v_temp = (__pyx_v_temp * 0.1);
-  }
-
-  /* "tests/cynum.pyx":743
- *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
- *         temp = (temp*0.1)
- *     temp = small             # <<<<<<<<<<<<<<
- *     i = N_PRECISION
- *     while (fabs(temp)!=ceil(fabs(temp))):
- */
-  __pyx_v_temp = __pyx_v_small;
-
-  /* "tests/cynum.pyx":744
- *         temp = (temp*0.1)
- *     temp = small
- *     i = N_PRECISION             # <<<<<<<<<<<<<<
- *     while (fabs(temp)!=ceil(fabs(temp))):
- *         temp = (temp*10)
- */
-  __pyx_v_i = N_PRECISION;
-
-  /* "tests/cynum.pyx":745
- *     temp = small
- *     i = N_PRECISION
- *     while (fabs(temp)!=ceil(fabs(temp))):             # <<<<<<<<<<<<<<
- *         temp = (temp*10)
- *         res.digits[i] = <char>fmod(floor(temp), 10)
- */
-  while (1) {
-    __pyx_t_1 = (fabs(__pyx_v_temp) != ceil(fabs(__pyx_v_temp)));
-    if (!__pyx_t_1) break;
-
-    /* "tests/cynum.pyx":746
- *     i = N_PRECISION
- *     while (fabs(temp)!=ceil(fabs(temp))):
- *         temp = (temp*10)             # <<<<<<<<<<<<<<
- *         res.digits[i] = <char>fmod(floor(temp), 10)
- *         postincrement(i)
- */
-    __pyx_v_temp = (__pyx_v_temp * 10.0);
-
-    /* "tests/cynum.pyx":747
- *     while (fabs(temp)!=ceil(fabs(temp))):
- *         temp = (temp*10)
- *         res.digits[i] = <char>fmod(floor(temp), 10)             # <<<<<<<<<<<<<<
- *         postincrement(i)
- *         if i > MAX_INDICE:
- */
-    (__pyx_v_res.digits[__pyx_v_i]) = ((char)fmod(floor(__pyx_v_temp), 10.0));
-
-    /* "tests/cynum.pyx":748
- *         temp = (temp*10)
- *         res.digits[i] = <char>fmod(floor(temp), 10)
- *         postincrement(i)             # <<<<<<<<<<<<<<
- *         if i > MAX_INDICE:
- *             break
- */
-    (void)((__pyx_v_i++));
-
-    /* "tests/cynum.pyx":749
- *         res.digits[i] = <char>fmod(floor(temp), 10)
- *         postincrement(i)
- *         if i > MAX_INDICE:             # <<<<<<<<<<<<<<
- *             break
- *     return res
- */
-    __pyx_t_1 = (__pyx_v_i > MAX_INDICE);
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":750
- *         postincrement(i)
- *         if i > MAX_INDICE:
- *             break             # <<<<<<<<<<<<<<
- *     return res
- * 
- */
-      goto __pyx_L7_break;
-
-      /* "tests/cynum.pyx":749
- *         res.digits[i] = <char>fmod(floor(temp), 10)
- *         postincrement(i)
- *         if i > MAX_INDICE:             # <<<<<<<<<<<<<<
- *             break
- *     return res
- */
-    }
-  }
-  __pyx_L7_break:;
-
-  /* "tests/cynum.pyx":751
- *         if i > MAX_INDICE:
- *             break
- *     return res             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- */
-  __pyx_r = __pyx_v_res;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":728
- *     return res
- * 
- * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)             # <<<<<<<<<<<<<<
- *     cdef double large = floor(first), small, temp
- *     small = first-large  # decimal portion
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":753
- *     return res
- * 
- * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i, x
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second) {
-  iterable_t __pyx_v_i;
-  iterable_t __pyx_v_x;
-  char __pyx_v_overflow;
-  char __pyx_v_res;
-  char __pyx_v_z;
-  char __pyx_v_y;
-  struct _cydecimal __pyx_r;
-  int __pyx_t_1;
-  iterable_t __pyx_t_2;
-  int __pyx_t_3;
-
-  /* "tests/cynum.pyx":755
- * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- *     cdef iterable_t i, x
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
- *         x = first.exp-second.exp
- *         _left_shift_digits(&second, x)  # bring up value
- */
-  __pyx_t_1 = (__pyx_v_first.exp > __pyx_v_second.exp);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":756
- *     cdef iterable_t i, x
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- *         x = first.exp-second.exp             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&second, x)  # bring up value
- *     elif second.exp > first.exp:
- */
-    __pyx_v_x = (__pyx_v_first.exp - __pyx_v_second.exp);
-
-    /* "tests/cynum.pyx":757
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- *         x = first.exp-second.exp
- *         _left_shift_digits(&second, x)  # bring up value             # <<<<<<<<<<<<<<
- *     elif second.exp > first.exp:
- *         x = second.exp-first.exp
- */
-    _left_shift_digits((&__pyx_v_second), __pyx_v_x);
-
-    /* "tests/cynum.pyx":755
- * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- *     cdef iterable_t i, x
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
- *         x = first.exp-second.exp
- *         _left_shift_digits(&second, x)  # bring up value
- */
-    goto __pyx_L3;
-  }
-
-  /* "tests/cynum.pyx":758
- *         x = first.exp-second.exp
- *         _left_shift_digits(&second, x)  # bring up value
- *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
- *         x = second.exp-first.exp
- *         _left_shift_digits(&first, x)  # bring up value
- */
-  __pyx_t_1 = (__pyx_v_second.exp > __pyx_v_first.exp);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":759
- *         _left_shift_digits(&second, x)  # bring up value
- *     elif second.exp > first.exp:
- *         x = second.exp-first.exp             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&first, x)  # bring up value
- *     cdef char overflow = 0, res = 0, z, y
- */
-    __pyx_v_x = (__pyx_v_second.exp - __pyx_v_first.exp);
-
-    /* "tests/cynum.pyx":760
- *     elif second.exp > first.exp:
- *         x = second.exp-first.exp
- *         _left_shift_digits(&first, x)  # bring up value             # <<<<<<<<<<<<<<
- *     cdef char overflow = 0, res = 0, z, y
- *     for i in range(MAX_INDICE, -1, -1):
- */
-    _left_shift_digits((&__pyx_v_first), __pyx_v_x);
-
-    /* "tests/cynum.pyx":758
- *         x = first.exp-second.exp
- *         _left_shift_digits(&second, x)  # bring up value
- *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
- *         x = second.exp-first.exp
- *         _left_shift_digits(&first, x)  # bring up value
- */
-  }
-  __pyx_L3:;
-
-  /* "tests/cynum.pyx":761
- *         x = second.exp-first.exp
- *         _left_shift_digits(&first, x)  # bring up value
- *     cdef char overflow = 0, res = 0, z, y             # <<<<<<<<<<<<<<
- *     for i in range(MAX_INDICE, -1, -1):
- *         y = second.digits[i]
- */
-  __pyx_v_overflow = 0;
-  __pyx_v_res = 0;
-
-  /* "tests/cynum.pyx":762
- *         _left_shift_digits(&first, x)  # bring up value
- *     cdef char overflow = 0, res = 0, z, y
- *     for i in range(MAX_INDICE, -1, -1):             # <<<<<<<<<<<<<<
- *         y = second.digits[i]
- *         z = first.digits[i]
- */
-  for (__pyx_t_2 = MAX_INDICE + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
-    __pyx_v_i = __pyx_t_2;
-
-    /* "tests/cynum.pyx":763
- *     cdef char overflow = 0, res = 0, z, y
- *     for i in range(MAX_INDICE, -1, -1):
- *         y = second.digits[i]             # <<<<<<<<<<<<<<
- *         z = first.digits[i]
- *         if ((overflow!=0) or (x!=0 or y!=0)):
- */
-    __pyx_v_y = (__pyx_v_second.digits[__pyx_v_i]);
-
-    /* "tests/cynum.pyx":764
- *     for i in range(MAX_INDICE, -1, -1):
- *         y = second.digits[i]
- *         z = first.digits[i]             # <<<<<<<<<<<<<<
- *         if ((overflow!=0) or (x!=0 or y!=0)):
- *             res = z + y + overflow
- */
-    __pyx_v_z = (__pyx_v_first.digits[__pyx_v_i]);
-
-    /* "tests/cynum.pyx":765
- *         y = second.digits[i]
- *         z = first.digits[i]
- *         if ((overflow!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
- *             res = z + y + overflow
- *             overflow = res
- */
-    __pyx_t_3 = (__pyx_v_overflow != 0);
-    if (!__pyx_t_3) {
-    } else {
-      __pyx_t_1 = __pyx_t_3;
-      goto __pyx_L7_bool_binop_done;
-    }
-    __pyx_t_3 = (__pyx_v_x != 0);
-    if (!__pyx_t_3) {
-    } else {
-      __pyx_t_1 = __pyx_t_3;
-      goto __pyx_L7_bool_binop_done;
-    }
-    __pyx_t_3 = (__pyx_v_y != 0);
-    __pyx_t_1 = __pyx_t_3;
-    __pyx_L7_bool_binop_done:;
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":766
- *         z = first.digits[i]
- *         if ((overflow!=0) or (x!=0 or y!=0)):
- *             res = z + y + overflow             # <<<<<<<<<<<<<<
- *             overflow = res
- *             if overflow > 9:
- */
-      __pyx_v_res = ((__pyx_v_z + __pyx_v_y) + __pyx_v_overflow);
-
-      /* "tests/cynum.pyx":767
- *         if ((overflow!=0) or (x!=0 or y!=0)):
- *             res = z + y + overflow
- *             overflow = res             # <<<<<<<<<<<<<<
- *             if overflow > 9:
- *                 overflow = overflow%10
- */
-      __pyx_v_overflow = __pyx_v_res;
-
-      /* "tests/cynum.pyx":768
- *             res = z + y + overflow
- *             overflow = res
- *             if overflow > 9:             # <<<<<<<<<<<<<<
- *                 overflow = overflow%10
- *             first.digits[i] = overflow  # get the last digit
- */
-      __pyx_t_1 = (__pyx_v_overflow > 9);
-      if (__pyx_t_1) {
-
-        /* "tests/cynum.pyx":769
- *             overflow = res
- *             if overflow > 9:
- *                 overflow = overflow%10             # <<<<<<<<<<<<<<
- *             first.digits[i] = overflow  # get the last digit
- *             overflow = <char>((res-overflow)*0.1)
- */
-        __pyx_v_overflow = (__pyx_v_overflow % 10);
-
-        /* "tests/cynum.pyx":768
- *             res = z + y + overflow
- *             overflow = res
- *             if overflow > 9:             # <<<<<<<<<<<<<<
- *                 overflow = overflow%10
- *             first.digits[i] = overflow  # get the last digit
- */
-      }
-
-      /* "tests/cynum.pyx":770
- *             if overflow > 9:
- *                 overflow = overflow%10
- *             first.digits[i] = overflow  # get the last digit             # <<<<<<<<<<<<<<
- *             overflow = <char>((res-overflow)*0.1)
- *     return first
- */
-      (__pyx_v_first.digits[__pyx_v_i]) = __pyx_v_overflow;
-
-      /* "tests/cynum.pyx":771
- *                 overflow = overflow%10
- *             first.digits[i] = overflow  # get the last digit
- *             overflow = <char>((res-overflow)*0.1)             # <<<<<<<<<<<<<<
- *     return first
- * 
- */
-      __pyx_v_overflow = ((char)((__pyx_v_res - __pyx_v_overflow) * 0.1));
-
-      /* "tests/cynum.pyx":765
- *         y = second.digits[i]
- *         z = first.digits[i]
- *         if ((overflow!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
- *             res = z + y + overflow
- *             overflow = res
- */
-    }
-  }
-
-  /* "tests/cynum.pyx":772
- *             first.digits[i] = overflow  # get the last digit
- *             overflow = <char>((res-overflow)*0.1)
- *     return first             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- */
-  __pyx_r = __pyx_v_first;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":753
- *     return res
- * 
- * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i, x
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":774
- *     return first
- * 
- * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i, index = 0, t
- *     cdef char x, y, res=0
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cydecimal __pyx_v_first, struct _cydecimal __pyx_v_second) {
-  iterable_t __pyx_v_i;
-  iterable_t __pyx_v_index;
-  char __pyx_v_x;
-  char __pyx_v_y;
-  char __pyx_v_res;
-  bool __pyx_v_small;
-  bool __pyx_v_negate;
-  struct _cydecimal __pyx_v_temp;
-  char __pyx_v_data[MAX_LENGTH];
-  struct _cydecimal __pyx_r;
-  int __pyx_t_1;
-  iterable_t __pyx_t_2;
-  int __pyx_t_3;
-
-  /* "tests/cynum.pyx":775
- * 
- * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- *     cdef iterable_t i, index = 0, t             # <<<<<<<<<<<<<<
- *     cdef char x, y, res=0
- *     cdef bool small = False, negate=False
- */
-  __pyx_v_index = 0;
-
-  /* "tests/cynum.pyx":776
- * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
- *     cdef iterable_t i, index = 0, t
- *     cdef char x, y, res=0             # <<<<<<<<<<<<<<
- *     cdef bool small = False, negate=False
- *     cdef _cydecimal temp
- */
-  __pyx_v_res = 0;
-
-  /* "tests/cynum.pyx":777
- *     cdef iterable_t i, index = 0, t
- *     cdef char x, y, res=0
- *     cdef bool small = False, negate=False             # <<<<<<<<<<<<<<
- *     cdef _cydecimal temp
- *     cdef char[MAX_LENGTH] data
- */
-  __pyx_v_small = 0;
-  __pyx_v_negate = 0;
-
-  /* "tests/cynum.pyx":780
- *     cdef _cydecimal temp
- *     cdef char[MAX_LENGTH] data
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
- *     elif second.exp > first.exp:
- */
-  __pyx_t_1 = (__pyx_v_first.exp > __pyx_v_second.exp);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":781
- *     cdef char[MAX_LENGTH] data
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value             # <<<<<<<<<<<<<<
- *     elif second.exp > first.exp:
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
- */
-    _left_shift_digits((&__pyx_v_second), (__pyx_v_first.exp - __pyx_v_second.exp));
-
-    /* "tests/cynum.pyx":780
- *     cdef _cydecimal temp
- *     cdef char[MAX_LENGTH] data
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
- *     elif second.exp > first.exp:
- */
-    goto __pyx_L3;
-  }
-
-  /* "tests/cynum.pyx":782
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
- *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
- *         temp = second
- */
-  __pyx_t_1 = (__pyx_v_second.exp > __pyx_v_first.exp);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":783
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
- *     elif second.exp > first.exp:
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value             # <<<<<<<<<<<<<<
- *         temp = second
- *         second = first
- */
-    _left_shift_digits((&__pyx_v_first), (__pyx_v_second.exp - __pyx_v_first.exp));
-
-    /* "tests/cynum.pyx":784
- *     elif second.exp > first.exp:
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
- *         temp = second             # <<<<<<<<<<<<<<
- *         second = first
- *         first = temp # swap
- */
-    __pyx_v_temp = __pyx_v_second;
-
-    /* "tests/cynum.pyx":785
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
- *         temp = second
- *         second = first             # <<<<<<<<<<<<<<
- *         first = temp # swap
- *         negate = True
- */
-    __pyx_v_second = __pyx_v_first;
-
-    /* "tests/cynum.pyx":786
- *         temp = second
- *         second = first
- *         first = temp # swap             # <<<<<<<<<<<<<<
- *         negate = True
- *     elif _less_than_digits(&first, &second):
- */
-    __pyx_v_first = __pyx_v_temp;
-
-    /* "tests/cynum.pyx":787
- *         second = first
- *         first = temp # swap
- *         negate = True             # <<<<<<<<<<<<<<
- *     elif _less_than_digits(&first, &second):
- *         temp = second
- */
-    __pyx_v_negate = 1;
-
-    /* "tests/cynum.pyx":782
- *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
- *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
- *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
- *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
- *         temp = second
- */
-    goto __pyx_L3;
-  }
-
-  /* "tests/cynum.pyx":788
- *         first = temp # swap
- *         negate = True
- *     elif _less_than_digits(&first, &second):             # <<<<<<<<<<<<<<
- *         temp = second
- *         second = first
- */
-  __pyx_t_1 = (_less_than_digits((&__pyx_v_first), (&__pyx_v_second)) != 0);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":789
- *         negate = True
- *     elif _less_than_digits(&first, &second):
- *         temp = second             # <<<<<<<<<<<<<<
- *         second = first
- *         first = temp # swap
- */
-    __pyx_v_temp = __pyx_v_second;
-
-    /* "tests/cynum.pyx":790
- *     elif _less_than_digits(&first, &second):
- *         temp = second
- *         second = first             # <<<<<<<<<<<<<<
- *         first = temp # swap
- *         negate = True
- */
-    __pyx_v_second = __pyx_v_first;
-
-    /* "tests/cynum.pyx":791
- *         temp = second
- *         second = first
- *         first = temp # swap             # <<<<<<<<<<<<<<
- *         negate = True
- *     elif _eq_digits(&first, &second):  # is this really worth it?
- */
-    __pyx_v_first = __pyx_v_temp;
-
-    /* "tests/cynum.pyx":792
- *         second = first
- *         first = temp # swap
- *         negate = True             # <<<<<<<<<<<<<<
- *     elif _eq_digits(&first, &second):  # is this really worth it?
- *         data = <char*>calloc(MAX_LENGTH, sizeof(char))
- */
-    __pyx_v_negate = 1;
-
-    /* "tests/cynum.pyx":788
- *         first = temp # swap
- *         negate = True
- *     elif _less_than_digits(&first, &second):             # <<<<<<<<<<<<<<
- *         temp = second
- *         second = first
- */
-    goto __pyx_L3;
-  }
-
-  /* "tests/cynum.pyx":793
- *         first = temp # swap
- *         negate = True
- *     elif _eq_digits(&first, &second):  # is this really worth it?             # <<<<<<<<<<<<<<
- *         data = <char*>calloc(MAX_LENGTH, sizeof(char))
- *         return _decimal(&data, 0, False)
- */
-  __pyx_t_1 = (_eq_digits((&__pyx_v_first), (&__pyx_v_second)) != 0);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":794
- *         negate = True
- *     elif _eq_digits(&first, &second):  # is this really worth it?
- *         data = <char*>calloc(MAX_LENGTH, sizeof(char))             # <<<<<<<<<<<<<<
- *         return _decimal(&data, 0, False)
- *         free(data)
- */
-    memcpy(&(__pyx_v_data[0]), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), sizeof(__pyx_v_data[0]) * (MAX_LENGTH - 0));
-
-    /* "tests/cynum.pyx":795
- *     elif _eq_digits(&first, &second):  # is this really worth it?
- *         data = <char*>calloc(MAX_LENGTH, sizeof(char))
- *         return _decimal(&data, 0, False)             # <<<<<<<<<<<<<<
- *         free(data)
- *     for i in range(MAX_INDICE, -1, -1):
- */
-    __pyx_r = _decimal((&__pyx_v_data), 0, 0);
-    goto __pyx_L0;
-
-    /* "tests/cynum.pyx":793
- *         first = temp # swap
- *         negate = True
- *     elif _eq_digits(&first, &second):  # is this really worth it?             # <<<<<<<<<<<<<<
- *         data = <char*>calloc(MAX_LENGTH, sizeof(char))
- *         return _decimal(&data, 0, False)
- */
-  }
-  __pyx_L3:;
-
-  /* "tests/cynum.pyx":797
- *         return _decimal(&data, 0, False)
- *         free(data)
- *     for i in range(MAX_INDICE, -1, -1):             # <<<<<<<<<<<<<<
- *         y = second.digits[i]
- *         x = first.digits[i]
- */
-  for (__pyx_t_2 = MAX_INDICE + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
-    __pyx_v_i = __pyx_t_2;
-
-    /* "tests/cynum.pyx":798
- *         free(data)
- *     for i in range(MAX_INDICE, -1, -1):
- *         y = second.digits[i]             # <<<<<<<<<<<<<<
- *         x = first.digits[i]
- *         if ((res!=0) or (x!=0 or y!=0)):
- */
-    __pyx_v_y = (__pyx_v_second.digits[__pyx_v_i]);
-
-    /* "tests/cynum.pyx":799
- *     for i in range(MAX_INDICE, -1, -1):
- *         y = second.digits[i]
- *         x = first.digits[i]             # <<<<<<<<<<<<<<
- *         if ((res!=0) or (x!=0 or y!=0)):
- *             x = x - res
- */
-    __pyx_v_x = (__pyx_v_first.digits[__pyx_v_i]);
-
-    /* "tests/cynum.pyx":800
- *         y = second.digits[i]
- *         x = first.digits[i]
- *         if ((res!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
- *             x = x - res
- *             y = y
- */
-    __pyx_t_3 = (__pyx_v_res != 0);
-    if (!__pyx_t_3) {
-    } else {
-      __pyx_t_1 = __pyx_t_3;
-      goto __pyx_L7_bool_binop_done;
-    }
-    __pyx_t_3 = (__pyx_v_x != 0);
-    if (!__pyx_t_3) {
-    } else {
-      __pyx_t_1 = __pyx_t_3;
-      goto __pyx_L7_bool_binop_done;
-    }
-    __pyx_t_3 = (__pyx_v_y != 0);
-    __pyx_t_1 = __pyx_t_3;
-    __pyx_L7_bool_binop_done:;
-    if (__pyx_t_1) {
-
-      /* "tests/cynum.pyx":801
- *         x = first.digits[i]
- *         if ((res!=0) or (x!=0 or y!=0)):
- *             x = x - res             # <<<<<<<<<<<<<<
- *             y = y
- * 
- */
-      __pyx_v_x = (__pyx_v_x - __pyx_v_res);
-
-      /* "tests/cynum.pyx":804
- *             y = y
- * 
- *             small = x < y             # <<<<<<<<<<<<<<
- *             if small:x+=10
- *             res = (x) - y
- */
-      __pyx_v_small = (__pyx_v_x < __pyx_v_y);
-
-      /* "tests/cynum.pyx":805
- * 
- *             small = x < y
- *             if small:x+=10             # <<<<<<<<<<<<<<
- *             res = (x) - y
- *             if res > 9:
- */
-      __pyx_t_1 = (__pyx_v_small != 0);
-      if (__pyx_t_1) {
-        __pyx_v_x = (__pyx_v_x + 10);
-      }
-
-      /* "tests/cynum.pyx":806
- *             small = x < y
- *             if small:x+=10
- *             res = (x) - y             # <<<<<<<<<<<<<<
- *             if res > 9:
- *                 res = ((res)%10)
- */
-      __pyx_v_res = (__pyx_v_x - __pyx_v_y);
-
-      /* "tests/cynum.pyx":807
- *             if small:x+=10
- *             res = (x) - y
- *             if res > 9:             # <<<<<<<<<<<<<<
- *                 res = ((res)%10)
- *             else:
- */
-      __pyx_t_1 = (__pyx_v_res > 9);
-      if (__pyx_t_1) {
-
-        /* "tests/cynum.pyx":808
- *             res = (x) - y
- *             if res > 9:
- *                 res = ((res)%10)             # <<<<<<<<<<<<<<
- *             else:
- *                 res=res
- */
-        __pyx_v_res = (__pyx_v_res % 10);
-
-        /* "tests/cynum.pyx":807
- *             if small:x+=10
- *             res = (x) - y
- *             if res > 9:             # <<<<<<<<<<<<<<
- *                 res = ((res)%10)
- *             else:
- */
-        goto __pyx_L11;
-      }
-
-      /* "tests/cynum.pyx":810
- *                 res = ((res)%10)
- *             else:
- *                 res=res             # <<<<<<<<<<<<<<
- *             if negate:
- *                 if res!=0:
- */
-      /*else*/ {
-      }
-      __pyx_L11:;
-
-      /* "tests/cynum.pyx":811
- *             else:
- *                 res=res
- *             if negate:             # <<<<<<<<<<<<<<
- *                 if res!=0:
- *                     index=i
- */
-      __pyx_t_1 = (__pyx_v_negate != 0);
-      if (__pyx_t_1) {
-
-        /* "tests/cynum.pyx":812
- *                 res=res
- *             if negate:
- *                 if res!=0:             # <<<<<<<<<<<<<<
- *                     index=i
- *             first.digits[i] = res  # always positive
- */
-        __pyx_t_1 = (__pyx_v_res != 0);
-        if (__pyx_t_1) {
-
-          /* "tests/cynum.pyx":813
- *             if negate:
- *                 if res!=0:
- *                     index=i             # <<<<<<<<<<<<<<
- *             first.digits[i] = res  # always positive
- * 
- */
-          __pyx_v_index = __pyx_v_i;
-
-          /* "tests/cynum.pyx":812
- *                 res=res
- *             if negate:
- *                 if res!=0:             # <<<<<<<<<<<<<<
- *                     index=i
- *             first.digits[i] = res  # always positive
- */
-        }
-
-        /* "tests/cynum.pyx":811
- *             else:
- *                 res=res
- *             if negate:             # <<<<<<<<<<<<<<
- *                 if res!=0:
- *                     index=i
- */
-      }
-
-      /* "tests/cynum.pyx":814
- *                 if res!=0:
- *                     index=i
- *             first.digits[i] = res  # always positive             # <<<<<<<<<<<<<<
- * 
- *             res = small
- */
-      (__pyx_v_first.digits[__pyx_v_i]) = __pyx_v_res;
-
-      /* "tests/cynum.pyx":816
- *             first.digits[i] = res  # always positive
- * 
- *             res = small             # <<<<<<<<<<<<<<
- *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
- *     if negate:
- */
-      __pyx_v_res = __pyx_v_small;
-
-      /* "tests/cynum.pyx":800
- *         y = second.digits[i]
- *         x = first.digits[i]
- *         if ((res!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
- *             x = x - res
- *             y = y
- */
-    }
-  }
-
-  /* "tests/cynum.pyx":818
- *             res = small
- *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
- *     if negate:             # <<<<<<<<<<<<<<
- *         first.digits[index] = -first.digits[index]
- *     return first
- */
-  __pyx_t_1 = (__pyx_v_negate != 0);
-  if (__pyx_t_1) {
-
-    /* "tests/cynum.pyx":819
- *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
- *     if negate:
- *         first.digits[index] = -first.digits[index]             # <<<<<<<<<<<<<<
- *     return first
- * 
- */
-    (__pyx_v_first.digits[__pyx_v_index]) = (-(__pyx_v_first.digits[__pyx_v_index]));
-
-    /* "tests/cynum.pyx":818
- *             res = small
- *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
- *     if negate:             # <<<<<<<<<<<<<<
- *         first.digits[index] = -first.digits[index]
- *     return first
- */
-  }
-
-  /* "tests/cynum.pyx":820
- *     if negate:
- *         first.digits[index] = -first.digits[index]
- *     return first             # <<<<<<<<<<<<<<
- * 
- * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
- */
-  __pyx_r = __pyx_v_first;
-  goto __pyx_L0;
-
-  /* "tests/cynum.pyx":774
- *     return first
- * 
- * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef iterable_t i, index = 0, t
- *     cdef char x, y, res=0
- */
-
-  /* function exit code */
-  __pyx_L0:;
-  return __pyx_r;
-}
-
-/* "tests/cynum.pyx":822
- *     return first
- * 
- * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef exponent_t i, j, place_val=0
- *     cdef bool negate = first.negative ^ second.negative  # 492.665453712
- */
-
-static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr const __pyx_v_first, _cydecimal_ptr const __pyx_v_second) {
-  exponent_t __pyx_v_i;
-  exponent_t __pyx_v_j;
-  exponent_t __pyx_v_place_val;
-  bool __pyx_v_negate;
-  unsigned char __pyx_v_overflow;
-  unsigned char __pyx_v_x;
-  unsigned char __pyx_v_y;
-  struct _cydecimal __pyx_v_result;
-  struct _cydecimal __pyx_r;
-  exponent_t __pyx_t_1;
-  int __pyx_t_2;
-  exponent_t __pyx_t_3;
-  int __pyx_t_4;
-  iterable_t __pyx_t_5;
-  iterable_t __pyx_t_6;
-
-  /* "tests/cynum.pyx":823
- * 
- * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
- *     cdef exponent_t i, j, place_val=0             # <<<<<<<<<<<<<<
- *     cdef bool negate = first.negative ^ second.negative  # 492.665453712
- *     cdef unsigned char overflow, x, y
- */
-  __pyx_v_place_val = 0;
-
-  /* "tests/cynum.pyx":824
- * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
- *     cdef exponent_t i, j, place_val=0
- *     cdef bool negate = first.negative ^ second.negative  # 492.665453712             # <<<<<<<<<<<<<<
- *     cdef unsigned char overflow, x, y
- *     cdef _cydecimal result = _empty_decimal()
- */
-  __pyx_v_negate = (__pyx_v_first->negative ^ __pyx_v_second->negative);
-
-  /* "tests/cynum.pyx":826
- *     cdef bool negate = first.negative ^ second.negative  # 492.665453712
- *     cdef unsigned char overflow, x, y
- *     cdef _cydecimal result = _empty_decimal()             # <<<<<<<<<<<<<<
- *     _normalize_digits(first, True)
- *     _normalize_digits(second, True)
- */
-  __pyx_v_result = _empty_decimal();
-
-  /* "tests/cynum.pyx":827
- *     cdef unsigned char overflow, x, y
- *     cdef _cydecimal result = _empty_decimal()
- *     _normalize_digits(first, True)             # <<<<<<<<<<<<<<
- *     _normalize_digits(second, True)
- *     result.exp = first.exp + second.exp
- */
-  _normalize_digits(__pyx_v_first, 1);
-
-  /* "tests/cynum.pyx":828
- *     cdef _cydecimal result = _empty_decimal()
- *     _normalize_digits(first, True)
- *     _normalize_digits(second, True)             # <<<<<<<<<<<<<<
- *     result.exp = first.exp + second.exp
- *     result.negative = negate
- */
-  _normalize_digits(__pyx_v_second, 1);
-
-  /* "tests/cynum.pyx":829
- *     _normalize_digits(first, True)
- *     _normalize_digits(second, True)
- *     result.exp = first.exp + second.exp             # <<<<<<<<<<<<<<
- *     result.negative = negate
- * 
- */
-  __pyx_v_result.exp = (__pyx_v_first->exp + __pyx_v_second->exp);
-
-  /* "tests/cynum.pyx":830
- *     _normalize_digits(second, True)
- *     result.exp = first.exp + second.exp
- *     result.negative = negate             # <<<<<<<<<<<<<<
- * 
- *     for i in range(N_DIGITS_I, -1, -1):
- */
-  __pyx_v_result.negative = __pyx_v_negate;
-
-  /* "tests/cynum.pyx":832
- *     result.negative = negate
- * 
- *     for i in range(N_DIGITS_I, -1, -1):             # <<<<<<<<<<<<<<
- *         overflow = 0
- *         x = first.digits[i]
- */
-  for (__pyx_t_1 = N_DIGITS_I; __pyx_t_1 > -1; __pyx_t_1-=1) {
-    __pyx_v_i = __pyx_t_1;
-
-    /* "tests/cynum.pyx":833
- * 
- *     for i in range(N_DIGITS_I, -1, -1):
- *         overflow = 0             # <<<<<<<<<<<<<<
- *         x = first.digits[i]
- *         if first.negative:
- */
-    __pyx_v_overflow = 0;
-
-    /* "tests/cynum.pyx":834
- *     for i in range(N_DIGITS_I, -1, -1):
- *         overflow = 0
- *         x = first.digits[i]             # <<<<<<<<<<<<<<
- *         if first.negative:
- *             if x > 9:
- */
-    __pyx_v_x = (__pyx_v_first->digits[__pyx_v_i]);
-
-    /* "tests/cynum.pyx":835
- *         overflow = 0
- *         x = first.digits[i]
- *         if first.negative:             # <<<<<<<<<<<<<<
- *             if x > 9:
- *                 x = -x
- */
-    __pyx_t_2 = (__pyx_v_first->negative != 0);
-    if (__pyx_t_2) {
-
-      /* "tests/cynum.pyx":836
- *         x = first.digits[i]
- *         if first.negative:
- *             if x > 9:             # <<<<<<<<<<<<<<
- *                 x = -x
- * 
- */
-      __pyx_t_2 = (__pyx_v_x > 9);
-      if (__pyx_t_2) {
-
-        /* "tests/cynum.pyx":837
- *         if first.negative:
- *             if x > 9:
- *                 x = -x             # <<<<<<<<<<<<<<
- * 
- *         if x != 0:
- */
-        __pyx_v_x = (-__pyx_v_x);
-
-        /* "tests/cynum.pyx":836
- *         x = first.digits[i]
- *         if first.negative:
- *             if x > 9:             # <<<<<<<<<<<<<<
- *                 x = -x
- * 
- */
-      }
-
-      /* "tests/cynum.pyx":835
- *         overflow = 0
- *         x = first.digits[i]
- *         if first.negative:             # <<<<<<<<<<<<<<
- *             if x > 9:
- *                 x = -x
- */
-    }
-
-    /* "tests/cynum.pyx":839
- *                 x = -x
- * 
- *         if x != 0:             # <<<<<<<<<<<<<<
- *             for j in range(N_DIGITS_I, -1, -1):
- *                 y = second.digits[j]
- */
-    __pyx_t_2 = (__pyx_v_x != 0);
-    if (__pyx_t_2) {
-
-      /* "tests/cynum.pyx":840
- * 
- *         if x != 0:
- *             for j in range(N_DIGITS_I, -1, -1):             # <<<<<<<<<<<<<<
- *                 y = second.digits[j]
- *                 if first.negative:
- */
-      for (__pyx_t_3 = N_DIGITS_I; __pyx_t_3 > -1; __pyx_t_3-=1) {
-        __pyx_v_j = __pyx_t_3;
-
-        /* "tests/cynum.pyx":841
- *         if x != 0:
- *             for j in range(N_DIGITS_I, -1, -1):
- *                 y = second.digits[j]             # <<<<<<<<<<<<<<
- *                 if first.negative:
- *                     if y > 9:  # overflow lmao
- */
-        __pyx_v_y = (__pyx_v_second->digits[__pyx_v_j]);
-
-        /* "tests/cynum.pyx":842
- *             for j in range(N_DIGITS_I, -1, -1):
- *                 y = second.digits[j]
- *                 if first.negative:             # <<<<<<<<<<<<<<
- *                     if y > 9:  # overflow lmao
- *                         y = -y
- */
-        __pyx_t_2 = (__pyx_v_first->negative != 0);
-        if (__pyx_t_2) {
-
-          /* "tests/cynum.pyx":843
- *                 y = second.digits[j]
- *                 if first.negative:
- *                     if y > 9:  # overflow lmao             # <<<<<<<<<<<<<<
- *                         y = -y
- * 
- */
-          __pyx_t_2 = (__pyx_v_y > 9);
-          if (__pyx_t_2) {
-
-            /* "tests/cynum.pyx":844
- *                 if first.negative:
- *                     if y > 9:  # overflow lmao
- *                         y = -y             # <<<<<<<<<<<<<<
- * 
- *                 if y == 0 and overflow == 0:
- */
-            __pyx_v_y = (-__pyx_v_y);
-
-            /* "tests/cynum.pyx":843
- *                 y = second.digits[j]
- *                 if first.negative:
- *                     if y > 9:  # overflow lmao             # <<<<<<<<<<<<<<
- *                         y = -y
- * 
- */
-          }
-
-          /* "tests/cynum.pyx":842
- *             for j in range(N_DIGITS_I, -1, -1):
- *                 y = second.digits[j]
- *                 if first.negative:             # <<<<<<<<<<<<<<
- *                     if y > 9:  # overflow lmao
- *                         y = -y
- */
-        }
-
-        /* "tests/cynum.pyx":846
- *                         y = -y
- * 
- *                 if y == 0 and overflow == 0:             # <<<<<<<<<<<<<<
- *                     continue
- * 
- */
-        __pyx_t_4 = (__pyx_v_y == 0);
-        if (__pyx_t_4) {
-        } else {
-          __pyx_t_2 = __pyx_t_4;
-          goto __pyx_L13_bool_binop_done;
-        }
-        __pyx_t_4 = (__pyx_v_overflow == 0);
-        __pyx_t_2 = __pyx_t_4;
-        __pyx_L13_bool_binop_done:;
-        if (__pyx_t_2) {
-
-          /* "tests/cynum.pyx":847
- * 
- *                 if y == 0 and overflow == 0:
- *                     continue             # <<<<<<<<<<<<<<
- * 
- *                 overflow = (x * y) + overflow + result.digits[j-place_val]
- */
-          goto __pyx_L8_continue;
-
-          /* "tests/cynum.pyx":846
- *                         y = -y
- * 
- *                 if y == 0 and overflow == 0:             # <<<<<<<<<<<<<<
- *                     continue
- * 
- */
-        }
-
-        /* "tests/cynum.pyx":849
- *                     continue
- * 
- *                 overflow = (x * y) + overflow + result.digits[j-place_val]             # <<<<<<<<<<<<<<
- *                 if (overflow > 9):
- *                     result.digits[j-place_val] = overflow % 10
- */
-        __pyx_v_overflow = (((__pyx_v_x * __pyx_v_y) + __pyx_v_overflow) + (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]));
-
-        /* "tests/cynum.pyx":850
- * 
- *                 overflow = (x * y) + overflow + result.digits[j-place_val]
- *                 if (overflow > 9):             # <<<<<<<<<<<<<<
- *                     result.digits[j-place_val] = overflow % 10
- *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over
- */
-        __pyx_t_2 = (__pyx_v_overflow > 9);
-        if (__pyx_t_2) {
-
-          /* "tests/cynum.pyx":851
- *                 overflow = (x * y) + overflow + result.digits[j-place_val]
- *                 if (overflow > 9):
- *                     result.digits[j-place_val] = overflow % 10             # <<<<<<<<<<<<<<
- *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over
- *                 else:
- */
-          (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]) = (__pyx_v_overflow % 10);
-
-          /* "tests/cynum.pyx":852
- *                 if (overflow > 9):
- *                     result.digits[j-place_val] = overflow % 10
- *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over             # <<<<<<<<<<<<<<
- *                 else:
- *                     result.digits[j-place_val] = overflow
- */
-          __pyx_v_overflow = ((unsigned char)(__pyx_v_overflow * 0.1));
-
-          /* "tests/cynum.pyx":850
- * 
- *                 overflow = (x * y) + overflow + result.digits[j-place_val]
- *                 if (overflow > 9):             # <<<<<<<<<<<<<<
- *                     result.digits[j-place_val] = overflow % 10
- *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over
- */
-          goto __pyx_L15;
-        }
-
-        /* "tests/cynum.pyx":854
- *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over
- *                 else:
- *                     result.digits[j-place_val] = overflow             # <<<<<<<<<<<<<<
- *                     overflow=0
- * 
- */
-        /*else*/ {
-          (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]) = __pyx_v_overflow;
-
-          /* "tests/cynum.pyx":855
- *                 else:
- *                     result.digits[j-place_val] = overflow
- *                     overflow=0             # <<<<<<<<<<<<<<
- * 
- *         postincrement(place_val)
- */
-          __pyx_v_overflow = 0;
-        }
-        __pyx_L15:;
-        __pyx_L8_continue:;
-      }
-
-      /* "tests/cynum.pyx":839
- *                 x = -x
- * 
- *         if x != 0:             # <<<<<<<<<<<<<<
- *             for j in range(N_DIGITS_I, -1, -1):
- *                 y = second.digits[j]
- */
-    }
-
-    /* "tests/cynum.pyx":857
- *                     overflow=0
- * 
- *         postincrement(place_val)             # <<<<<<<<<<<<<<
- *             # This line adds the carry-over to the next digit
- * 
- */
-    (void)((__pyx_v_place_val++));
-  }
-
-  /* "tests/cynum.pyx":860
- *             # This line adds the carry-over to the next digit
- * 
- *     if negate:             # <<<<<<<<<<<<<<
- *         for i in range(MAX_LENGTH):
- *             if result.digits[i] != 0:
- */
-  __pyx_t_2 = (__pyx_v_negate != 0);
-  if (__pyx_t_2) {
-
-    /* "tests/cynum.pyx":861
- * 
- *     if negate:
- *         for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
- *             if result.digits[i] != 0:
- *                 result.digits[i] = -result.digits[i]
- */
-    __pyx_t_5 = MAX_LENGTH;
+    /* "tests/precision_mandelbrot.pyx":69
+ *     cdef unsigned int i,j
+ *     for i in range(xlen):
+ *         for j in range(ylen):             # <<<<<<<<<<<<<<
+ *             l.append(arr[i][j])
+ *         free(arr[i])
+ */
+    __pyx_t_5 = __pyx_v_ylen;
     __pyx_t_6 = __pyx_t_5;
-    for (__pyx_t_1 = 0; __pyx_t_1 < __pyx_t_6; __pyx_t_1+=1) {
-      __pyx_v_i = __pyx_t_1;
+    for (__pyx_t_7 = 0; __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
+      __pyx_v_j = __pyx_t_7;
 
-      /* "tests/cynum.pyx":862
- *     if negate:
- *         for i in range(MAX_LENGTH):
- *             if result.digits[i] != 0:             # <<<<<<<<<<<<<<
- *                 result.digits[i] = -result.digits[i]
- *                 break
+      /* "tests/precision_mandelbrot.pyx":70
+ *     for i in range(xlen):
+ *         for j in range(ylen):
+ *             l.append(arr[i][j])             # <<<<<<<<<<<<<<
+ *         free(arr[i])
+ *     free(arr)
  */
-      __pyx_t_2 = ((__pyx_v_result.digits[__pyx_v_i]) != 0);
-      if (__pyx_t_2) {
-
-        /* "tests/cynum.pyx":863
- *         for i in range(MAX_LENGTH):
- *             if result.digits[i] != 0:
- *                 result.digits[i] = -result.digits[i]             # <<<<<<<<<<<<<<
- *                 break
- *     _normalize_digits(&result, False)
- */
-        (__pyx_v_result.digits[__pyx_v_i]) = (-(__pyx_v_result.digits[__pyx_v_i]));
-
-        /* "tests/cynum.pyx":864
- *             if result.digits[i] != 0:
- *                 result.digits[i] = -result.digits[i]
- *                 break             # <<<<<<<<<<<<<<
- *     _normalize_digits(&result, False)
- *     return result
- */
-        goto __pyx_L18_break;
-
-        /* "tests/cynum.pyx":862
- *     if negate:
- *         for i in range(MAX_LENGTH):
- *             if result.digits[i] != 0:             # <<<<<<<<<<<<<<
- *                 result.digits[i] = -result.digits[i]
- *                 break
- */
-      }
+      __pyx_t_1 = __Pyx_PyInt_From_unsigned_int(((__pyx_v_arr[__pyx_v_i])[__pyx_v_j])); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 70, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      __pyx_t_8 = __Pyx_PyList_Append(__pyx_v_l, __pyx_t_1); if (unlikely(__pyx_t_8 == ((int)-1))) __PYX_ERR(0, 70, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     }
-    __pyx_L18_break:;
 
-    /* "tests/cynum.pyx":860
- *             # This line adds the carry-over to the next digit
- * 
- *     if negate:             # <<<<<<<<<<<<<<
- *         for i in range(MAX_LENGTH):
- *             if result.digits[i] != 0:
+    /* "tests/precision_mandelbrot.pyx":71
+ *         for j in range(ylen):
+ *             l.append(arr[i][j])
+ *         free(arr[i])             # <<<<<<<<<<<<<<
+ *     free(arr)
+ *     return l
  */
+    free((__pyx_v_arr[__pyx_v_i]));
   }
 
-  /* "tests/cynum.pyx":865
- *                 result.digits[i] = -result.digits[i]
- *                 break
- *     _normalize_digits(&result, False)             # <<<<<<<<<<<<<<
- *     return result
+  /* "tests/precision_mandelbrot.pyx":72
+ *             l.append(arr[i][j])
+ *         free(arr[i])
+ *     free(arr)             # <<<<<<<<<<<<<<
+ *     return l
  * 
  */
-  _normalize_digits((&__pyx_v_result), 0);
+  free(__pyx_v_arr);
 
-  /* "tests/cynum.pyx":866
- *                 break
- *     _normalize_digits(&result, False)
- *     return result             # <<<<<<<<<<<<<<
+  /* "tests/precision_mandelbrot.pyx":73
+ *         free(arr[i])
+ *     free(arr)
+ *     return l             # <<<<<<<<<<<<<<
  * 
- * 
+ * cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * nogil:
  */
-  __pyx_r = __pyx_v_result;
+  __Pyx_XDECREF(__pyx_r);
+  __Pyx_INCREF(__pyx_v_l);
+  __pyx_r = __pyx_v_l;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":822
- *     return first
+  /* "tests/precision_mandelbrot.pyx":65
+ *         start = _add_decimals(start, stop)
  * 
- * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:             # <<<<<<<<<<<<<<
- *     cdef exponent_t i, j, place_val=0
- *     cdef bool negate = first.negative ^ second.negative  # 492.665453712
+ * cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:             # <<<<<<<<<<<<<<
+ *     cdef list l = []
+ *     cdef unsigned int i,j
  */
 
   /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("tests.precision_mandelbrot.ui_2_list", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
   __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_l);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "tests/precision_mandelbrot.pyx":75
+ *     return l
+ * 
+ * cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * nogil:             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i,j
+ *     with parallel(num_threads=8):
+ */
+
+static unsigned int **__pyx_f_5tests_20precision_mandelbrot_main1(unsigned int **__pyx_v_arr, _cydecimal_ptr const __pyx_v_r1, _cydecimal_ptr const __pyx_v_r2, CYTHON_UNUSED unsigned int const __pyx_v_width, CYTHON_UNUSED unsigned int const __pyx_v_height, unsigned int const __pyx_v_maxiter) {
+  unsigned int __pyx_v_i;
+  unsigned int __pyx_v_j;
+  unsigned int **__pyx_r;
+  unsigned int __pyx_t_1;
+  unsigned int __pyx_t_2;
+  unsigned int __pyx_t_3;
+  unsigned int __pyx_t_4;
+  unsigned int __pyx_t_5;
+  unsigned int __pyx_t_6;
+  unsigned int __pyx_t_7;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  #ifdef WITH_THREAD
+  PyGILState_STATE __pyx_gilstate_save;
+  #endif
+
+  /* "tests/precision_mandelbrot.pyx":77
+ * cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * nogil:
+ *     cdef unsigned int i,j
+ *     with parallel(num_threads=8):             # <<<<<<<<<<<<<<
+ *         for i in prange(width, nogil=True, schedule='dynamic'):
+ *             for j in prange(height, nogil=True, schedule='dynamic'):
+ */
+  {
+      const char *__pyx_parallel_filename = NULL; int __pyx_parallel_lineno = 0, __pyx_parallel_clineno = 0;
+      PyObject *__pyx_parallel_exc_type = NULL, *__pyx_parallel_exc_value = NULL, *__pyx_parallel_exc_tb = NULL;
+      int __pyx_parallel_why;
+      __pyx_parallel_why = 0;
+      #if ((defined(__APPLE__) || defined(__OSX__)) && (defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)))))
+          #undef likely
+          #undef unlikely
+          #define likely(x)   (x)
+          #define unlikely(x) (x)
+      #endif
+      #ifdef _OPENMP
+      #pragma omp parallel  private(__pyx_t_1, __pyx_t_2, __pyx_t_3, __pyx_t_4, __pyx_t_5, __pyx_t_6, __pyx_t_7) private(__pyx_filename, __pyx_lineno, __pyx_clineno) shared(__pyx_parallel_why, __pyx_parallel_exc_type, __pyx_parallel_exc_value, __pyx_parallel_exc_tb) num_threads(8)
+      #endif /* _OPENMP */
+      {
+          #ifdef _OPENMP
+          #ifdef WITH_THREAD
+          PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+          #endif
+          Py_BEGIN_ALLOW_THREADS
+          #endif /* _OPENMP */
+
+          /* "tests/precision_mandelbrot.pyx":78
+ *     cdef unsigned int i,j
+ *     with parallel(num_threads=8):
+ *         for i in prange(width, nogil=True, schedule='dynamic'):             # <<<<<<<<<<<<<<
+ *             for j in prange(height, nogil=True, schedule='dynamic'):
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+ */
+          {
+              #ifdef WITH_THREAD
+              PyThreadState *_save;
+              _save = NULL;
+              if (PyGILState_Check()) {
+                Py_UNBLOCK_THREADS
+              }
+              __Pyx_FastGIL_Remember();
+              #endif
+              /*try:*/ {
+                __pyx_t_1 = __pyx_v_width;
+                {
+                    unsigned int __pyx_parallel_temp0 = ((unsigned int)0xbad0bad0);
+                    unsigned int __pyx_parallel_temp1 = ((unsigned int)0xbad0bad0);
+                    const char *__pyx_parallel_filename = NULL; int __pyx_parallel_lineno = 0, __pyx_parallel_clineno = 0;
+                    PyObject *__pyx_parallel_exc_type = NULL, *__pyx_parallel_exc_value = NULL, *__pyx_parallel_exc_tb = NULL;
+                    int __pyx_parallel_why;
+                    __pyx_parallel_why = 0;
+                    __pyx_t_3 = (__pyx_t_1 - 0 + 1 - 1/abs(1)) / 1;
+                    if (__pyx_t_3 > 0)
+                    {
+                        #ifdef _OPENMP
+                        #pragma omp for firstprivate(__pyx_v_i) lastprivate(__pyx_v_i) lastprivate(__pyx_v_j) schedule(dynamic)
+                        #endif /* _OPENMP */
+                        for (__pyx_t_2 = 0; __pyx_t_2 < __pyx_t_3; __pyx_t_2++){
+                            if (__pyx_parallel_why < 2)
+                            {
+                                __pyx_v_i = (unsigned int)(0 + 1 * __pyx_t_2);
+                                /* Initialize private variables to invalid values */
+                                __pyx_v_j = ((unsigned int)0xbad0bad0);
+
+                                /* "tests/precision_mandelbrot.pyx":79
+ *     with parallel(num_threads=8):
+ *         for i in prange(width, nogil=True, schedule='dynamic'):
+ *             for j in prange(height, nogil=True, schedule='dynamic'):             # <<<<<<<<<<<<<<
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+ *     return arr
+ */
+                                {
+                                    #ifdef WITH_THREAD
+                                    PyThreadState *_save;
+                                    _save = NULL;
+                                    if (PyGILState_Check()) {
+                                      Py_UNBLOCK_THREADS
+                                    }
+                                    __Pyx_FastGIL_Remember();
+                                    #endif
+                                    /*try:*/ {
+                                      __pyx_t_4 = __pyx_v_height;
+                                      {
+                                          unsigned int __pyx_parallel_temp0 = ((unsigned int)0xbad0bad0);
+                                          const char *__pyx_parallel_filename = NULL; int __pyx_parallel_lineno = 0, __pyx_parallel_clineno = 0;
+                                          PyObject *__pyx_parallel_exc_type = NULL, *__pyx_parallel_exc_value = NULL, *__pyx_parallel_exc_tb = NULL;
+                                          int __pyx_parallel_why;
+                                          __pyx_parallel_why = 0;
+                                          __pyx_t_6 = (__pyx_t_4 - 0 + 1 - 1/abs(1)) / 1;
+                                          if (__pyx_t_6 > 0)
+                                          {
+                                              #if 0
+                                              #pragma omp parallel
+                                              #endif /* _OPENMP */
+                                              {
+                                                  #ifdef _OPENMP
+                                                  #ifdef WITH_THREAD
+                                                  PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                                                  #endif
+                                                  Py_BEGIN_ALLOW_THREADS
+                                                  #endif /* _OPENMP */
+                                                  #if 0
+                                                  #pragma omp for firstprivate(__pyx_v_j) lastprivate(__pyx_v_j) schedule(dynamic)
+                                                  #endif /* _OPENMP */
+                                                  for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_6; __pyx_t_5++){
+                                                      if (__pyx_parallel_why < 2)
+                                                      {
+                                                          __pyx_v_j = (unsigned int)(0 + 1 * __pyx_t_5);
+
+                                                          /* "tests/precision_mandelbrot.pyx":80
+ *         for i in prange(width, nogil=True, schedule='dynamic'):
+ *             for j in prange(height, nogil=True, schedule='dynamic'):
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)             # <<<<<<<<<<<<<<
+ *     return arr
+ * 
+ */
+                                                          __pyx_t_7 = __pyx_f_5tests_20precision_mandelbrot_mandelbrot((__pyx_v_r1[__pyx_v_i]), (__pyx_v_r2[__pyx_v_j]), __pyx_v_maxiter); if (unlikely(__pyx_t_7 == ((unsigned int)-1) && __Pyx_ErrOccurredWithGIL())) __PYX_ERR(0, 80, __pyx_L23_error)
+                                                          ((__pyx_v_arr[__pyx_v_i])[__pyx_v_j]) = __pyx_t_7;
+                                                          goto __pyx_L26;
+                                                          __pyx_L23_error:;
+                                                          {
+                                                              #ifdef WITH_THREAD
+                                                              PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                                                              #endif
+                                                              #ifdef _OPENMP
+                                                              #pragma omp flush(__pyx_parallel_exc_type)
+                                                              #endif /* _OPENMP */
+                                                              if (!__pyx_parallel_exc_type) {
+                                                                __Pyx_ErrFetchWithState(&__pyx_parallel_exc_type, &__pyx_parallel_exc_value, &__pyx_parallel_exc_tb);
+                                                                __pyx_parallel_filename = __pyx_filename; __pyx_parallel_lineno = __pyx_lineno; __pyx_parallel_clineno = __pyx_clineno;
+                                                                __Pyx_GOTREF(__pyx_parallel_exc_type);
+                                                              }
+                                                              #ifdef WITH_THREAD
+                                                              __Pyx_PyGILState_Release(__pyx_gilstate_save);
+                                                              #endif
+                                                          }
+                                                          __pyx_parallel_why = 4;
+                                                          goto __pyx_L25;
+                                                          __pyx_L25:;
+                                                          #ifdef _OPENMP
+                                                          #pragma omp critical(__pyx_parallel_lastprivates0)
+                                                          #endif /* _OPENMP */
+                                                          {
+                                                              __pyx_parallel_temp0 = __pyx_v_j;
+                                                          }
+                                                          __pyx_L26:;
+                                                          #ifdef _OPENMP
+                                                          #pragma omp flush(__pyx_parallel_why)
+                                                          #endif /* _OPENMP */
+                                                      }
+                                                  }
+                                                  #ifdef _OPENMP
+                                                  Py_END_ALLOW_THREADS
+                                                  #else
+{
+#ifdef WITH_THREAD
+                                                  PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                                                  #endif
+                                                  #endif /* _OPENMP */
+                                                  #ifdef WITH_THREAD
+                                                  __Pyx_PyGILState_Release(__pyx_gilstate_save);
+                                                  #endif
+                                                  #ifndef _OPENMP
+}
+#endif /* _OPENMP */
+                                              }
+                                          }
+                                          if (__pyx_parallel_exc_type) {
+                                            /* This may have been overridden by a continue, break or return in another thread. Prefer the error. */
+                                            __pyx_parallel_why = 4;
+                                          }
+                                          if (__pyx_parallel_why) {
+                                            __pyx_v_j = __pyx_parallel_temp0;
+                                            switch (__pyx_parallel_why) {
+                                                  case 4:
+                                              {
+                                                  #ifdef WITH_THREAD
+                                                  PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                                                  #endif
+                                                  __Pyx_GIVEREF(__pyx_parallel_exc_type);
+                                                  __Pyx_ErrRestoreWithState(__pyx_parallel_exc_type, __pyx_parallel_exc_value, __pyx_parallel_exc_tb);
+                                                  __pyx_filename = __pyx_parallel_filename; __pyx_lineno = __pyx_parallel_lineno; __pyx_clineno = __pyx_parallel_clineno;
+                                                  #ifdef WITH_THREAD
+                                                  __Pyx_PyGILState_Release(__pyx_gilstate_save);
+                                                  #endif
+                                              }
+                                              goto __pyx_L19_error;
+                                            }
+                                          }
+                                      }
+                                    }
+
+                                    /* "tests/precision_mandelbrot.pyx":79
+ *     with parallel(num_threads=8):
+ *         for i in prange(width, nogil=True, schedule='dynamic'):
+ *             for j in prange(height, nogil=True, schedule='dynamic'):             # <<<<<<<<<<<<<<
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+ *     return arr
+ */
+                                    /*finally:*/ {
+                                      /*normal exit:*/{
+                                        #ifdef WITH_THREAD
+                                        __Pyx_FastGIL_Forget();
+                                        if (_save) {
+                                          Py_BLOCK_THREADS
+                                        }
+                                        #endif
+                                        goto __pyx_L20;
+                                      }
+                                      __pyx_L19_error: {
+                                        #ifdef WITH_THREAD
+                                        __Pyx_FastGIL_Forget();
+                                        if (_save) {
+                                          Py_BLOCK_THREADS
+                                        }
+                                        #endif
+                                        goto __pyx_L14_error;
+                                      }
+                                      __pyx_L20:;
+                                    }
+                                }
+                                goto __pyx_L28;
+                                __pyx_L14_error:;
+                                {
+                                    #ifdef WITH_THREAD
+                                    PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                                    #endif
+                                    #ifdef _OPENMP
+                                    #pragma omp flush(__pyx_parallel_exc_type)
+                                    #endif /* _OPENMP */
+                                    if (!__pyx_parallel_exc_type) {
+                                      __Pyx_ErrFetchWithState(&__pyx_parallel_exc_type, &__pyx_parallel_exc_value, &__pyx_parallel_exc_tb);
+                                      __pyx_parallel_filename = __pyx_filename; __pyx_parallel_lineno = __pyx_lineno; __pyx_parallel_clineno = __pyx_clineno;
+                                      __Pyx_GOTREF(__pyx_parallel_exc_type);
+                                    }
+                                    #ifdef WITH_THREAD
+                                    __Pyx_PyGILState_Release(__pyx_gilstate_save);
+                                    #endif
+                                }
+                                __pyx_parallel_why = 4;
+                                goto __pyx_L27;
+                                __pyx_L27:;
+                                #ifdef _OPENMP
+                                #pragma omp critical(__pyx_parallel_lastprivates1)
+                                #endif /* _OPENMP */
+                                {
+                                    __pyx_parallel_temp0 = __pyx_v_i;
+                                    __pyx_parallel_temp1 = __pyx_v_j;
+                                }
+                                __pyx_L28:;
+                                #ifdef _OPENMP
+                                #pragma omp flush(__pyx_parallel_why)
+                                #endif /* _OPENMP */
+                            }
+                        }
+                    }
+                    if (__pyx_parallel_exc_type) {
+                      /* This may have been overridden by a continue, break or return in another thread. Prefer the error. */
+                      __pyx_parallel_why = 4;
+                    }
+                    if (__pyx_parallel_why) {
+                      __pyx_v_i = __pyx_parallel_temp0;
+                      __pyx_v_j = __pyx_parallel_temp1;
+                      switch (__pyx_parallel_why) {
+                            case 4:
+                        {
+                            #ifdef WITH_THREAD
+                            PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+                            #endif
+                            __Pyx_GIVEREF(__pyx_parallel_exc_type);
+                            __Pyx_ErrRestoreWithState(__pyx_parallel_exc_type, __pyx_parallel_exc_value, __pyx_parallel_exc_tb);
+                            __pyx_filename = __pyx_parallel_filename; __pyx_lineno = __pyx_parallel_lineno; __pyx_clineno = __pyx_parallel_clineno;
+                            #ifdef WITH_THREAD
+                            __Pyx_PyGILState_Release(__pyx_gilstate_save);
+                            #endif
+                        }
+                        goto __pyx_L10_error;
+                      }
+                    }
+                }
+              }
+
+              /* "tests/precision_mandelbrot.pyx":78
+ *     cdef unsigned int i,j
+ *     with parallel(num_threads=8):
+ *         for i in prange(width, nogil=True, schedule='dynamic'):             # <<<<<<<<<<<<<<
+ *             for j in prange(height, nogil=True, schedule='dynamic'):
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+ */
+              /*finally:*/ {
+                /*normal exit:*/{
+                  #ifdef WITH_THREAD
+                  __Pyx_FastGIL_Forget();
+                  if (_save) {
+                    Py_BLOCK_THREADS
+                  }
+                  #endif
+                  goto __pyx_L11;
+                }
+                __pyx_L10_error: {
+                  #ifdef WITH_THREAD
+                  __Pyx_FastGIL_Forget();
+                  if (_save) {
+                    Py_BLOCK_THREADS
+                  }
+                  #endif
+                  goto __pyx_L5_error;
+                }
+                __pyx_L11:;
+              }
+          }
+          goto __pyx_L30;
+          __pyx_L5_error:;
+          {
+              #ifdef WITH_THREAD
+              PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+              #endif
+              #ifdef _OPENMP
+              #pragma omp flush(__pyx_parallel_exc_type)
+              #endif /* _OPENMP */
+              if (!__pyx_parallel_exc_type) {
+                __Pyx_ErrFetchWithState(&__pyx_parallel_exc_type, &__pyx_parallel_exc_value, &__pyx_parallel_exc_tb);
+                __pyx_parallel_filename = __pyx_filename; __pyx_parallel_lineno = __pyx_lineno; __pyx_parallel_clineno = __pyx_clineno;
+                __Pyx_GOTREF(__pyx_parallel_exc_type);
+              }
+              #ifdef WITH_THREAD
+              __Pyx_PyGILState_Release(__pyx_gilstate_save);
+              #endif
+          }
+          __pyx_parallel_why = 4;
+          goto __pyx_L30;
+          __pyx_L30:;
+          #ifdef _OPENMP
+          Py_END_ALLOW_THREADS
+          #else
+{
+#ifdef WITH_THREAD
+          PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+          #endif
+          #endif /* _OPENMP */
+          /* Clean up any temporaries */
+          #ifdef WITH_THREAD
+          __Pyx_PyGILState_Release(__pyx_gilstate_save);
+          #endif
+          #ifndef _OPENMP
+}
+#endif /* _OPENMP */
+      }
+      if (__pyx_parallel_exc_type) {
+        /* This may have been overridden by a continue, break or return in another thread. Prefer the error. */
+        __pyx_parallel_why = 4;
+      }
+      if (__pyx_parallel_why) {
+        switch (__pyx_parallel_why) {
+              case 4:
+          {
+              #ifdef WITH_THREAD
+              PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+              #endif
+              __Pyx_GIVEREF(__pyx_parallel_exc_type);
+              __Pyx_ErrRestoreWithState(__pyx_parallel_exc_type, __pyx_parallel_exc_value, __pyx_parallel_exc_tb);
+              __pyx_filename = __pyx_parallel_filename; __pyx_lineno = __pyx_parallel_lineno; __pyx_clineno = __pyx_parallel_clineno;
+              #ifdef WITH_THREAD
+              __Pyx_PyGILState_Release(__pyx_gilstate_save);
+              #endif
+          }
+          goto __pyx_L1_error;
+        }
+      }
+  }
+  #if ((defined(__APPLE__) || defined(__OSX__)) && (defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)))))
+      #undef likely
+      #undef unlikely
+      #define likely(x)   __builtin_expect(!!(x), 1)
+      #define unlikely(x) __builtin_expect(!!(x), 0)
+  #endif
+
+  /* "tests/precision_mandelbrot.pyx":81
+ *             for j in prange(height, nogil=True, schedule='dynamic'):
+ *                 arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+ *     return arr             # <<<<<<<<<<<<<<
+ * 
+ * cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):
+ */
+  __pyx_r = __pyx_v_arr;
+  goto __pyx_L0;
+
+  /* "tests/precision_mandelbrot.pyx":75
+ *     return l
+ * 
+ * cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * nogil:             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i,j
+ *     with parallel(num_threads=8):
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  #ifdef WITH_THREAD
+  __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
+  #endif
+  __Pyx_AddTraceback("tests.precision_mandelbrot.main1", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  #ifdef WITH_THREAD
+  __Pyx_PyGILState_Release(__pyx_gilstate_save);
+  #endif
+  __pyx_L0:;
+  return __pyx_r;
+}
+
+/* "tests/precision_mandelbrot.pyx":83
+ *     return arr
+ * 
+ * cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):             # <<<<<<<<<<<<<<
+ *     print('in function')
+ *     cdef unsigned int i,j
+ */
+
+static CYTHON_INLINE PyObject *__pyx_f_5tests_20precision_mandelbrot_main(struct _cydecimal const __pyx_v_xmin, struct _cydecimal const __pyx_v_xmax, struct _cydecimal const __pyx_v_ymin, struct _cydecimal const __pyx_v_ymax, struct _cydecimal const __pyx_v_n_recip, unsigned int const __pyx_v_width, unsigned int const __pyx_v_height, unsigned int const __pyx_v_maxiter) {
+  unsigned int __pyx_v_i;
+  unsigned int **__pyx_v_arr;
+  _cydecimal_ptr __pyx_v_r1;
+  _cydecimal_ptr __pyx_v_r2;
+  PyObject *__pyx_v_data = 0;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  unsigned int __pyx_t_2;
+  unsigned int __pyx_t_3;
+  unsigned int __pyx_t_4;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("main", 0);
+
+  /* "tests/precision_mandelbrot.pyx":84
+ * 
+ * cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):
+ *     print('in function')             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i,j
+ *     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__4, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 84, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "tests/precision_mandelbrot.pyx":86
+ *     print('in function')
+ *     cdef unsigned int i,j
+ *     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))             # <<<<<<<<<<<<<<
+ *     cdef _cydecimal_ptr r1 = <_cydecimal_ptr>malloc(width*sizeof(_cydecimal))
+ *     cdef _cydecimal_ptr r2 = <_cydecimal_ptr>malloc(height*sizeof(_cydecimal))
+ */
+  __pyx_v_arr = ((unsigned int **)malloc((__pyx_v_width * (sizeof(unsigned int *)))));
+
+  /* "tests/precision_mandelbrot.pyx":87
+ *     cdef unsigned int i,j
+ *     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
+ *     cdef _cydecimal_ptr r1 = <_cydecimal_ptr>malloc(width*sizeof(_cydecimal))             # <<<<<<<<<<<<<<
+ *     cdef _cydecimal_ptr r2 = <_cydecimal_ptr>malloc(height*sizeof(_cydecimal))
+ *     cdef list data
+ */
+  __pyx_v_r1 = ((_cydecimal_ptr)malloc((__pyx_v_width * (sizeof(struct _cydecimal)))));
+
+  /* "tests/precision_mandelbrot.pyx":88
+ *     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
+ *     cdef _cydecimal_ptr r1 = <_cydecimal_ptr>malloc(width*sizeof(_cydecimal))
+ *     cdef _cydecimal_ptr r2 = <_cydecimal_ptr>malloc(height*sizeof(_cydecimal))             # <<<<<<<<<<<<<<
+ *     cdef list data
+ *     for i in prange(width, nogil=True, schedule='dynamic', num_threads=8):
+ */
+  __pyx_v_r2 = ((_cydecimal_ptr)malloc((__pyx_v_height * (sizeof(struct _cydecimal)))));
+
+  /* "tests/precision_mandelbrot.pyx":90
+ *     cdef _cydecimal_ptr r2 = <_cydecimal_ptr>malloc(height*sizeof(_cydecimal))
+ *     cdef list data
+ *     for i in prange(width, nogil=True, schedule='dynamic', num_threads=8):             # <<<<<<<<<<<<<<
+ *         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))
+ * 
+ */
+  {
+      #ifdef WITH_THREAD
+      PyThreadState *_save;
+      _save = NULL;
+      Py_UNBLOCK_THREADS
+      __Pyx_FastGIL_Remember();
+      #endif
+      /*try:*/ {
+        __pyx_t_2 = __pyx_v_width;
+        {
+            #if ((defined(__APPLE__) || defined(__OSX__)) && (defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)))))
+                #undef likely
+                #undef unlikely
+                #define likely(x)   (x)
+                #define unlikely(x) (x)
+            #endif
+            __pyx_t_4 = (__pyx_t_2 - 0 + 1 - 1/abs(1)) / 1;
+            if (__pyx_t_4 > 0)
+            {
+                #ifdef _OPENMP
+                #pragma omp parallel num_threads(8)
+                #endif /* _OPENMP */
+                {
+                    #ifdef _OPENMP
+                    #pragma omp for firstprivate(__pyx_v_i) lastprivate(__pyx_v_i) schedule(dynamic)
+                    #endif /* _OPENMP */
+                    for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_4; __pyx_t_3++){
+                        {
+                            __pyx_v_i = (unsigned int)(0 + 1 * __pyx_t_3);
+
+                            /* "tests/precision_mandelbrot.pyx":91
+ *     cdef list data
+ *     for i in prange(width, nogil=True, schedule='dynamic', num_threads=8):
+ *         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))             # <<<<<<<<<<<<<<
+ * 
+ *     print('started allocation')
+ */
+                            (__pyx_v_arr[__pyx_v_i]) = ((unsigned int *)malloc((__pyx_v_height * (sizeof(unsigned int)))));
+                        }
+                    }
+                }
+            }
+        }
+        #if ((defined(__APPLE__) || defined(__OSX__)) && (defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)))))
+            #undef likely
+            #undef unlikely
+            #define likely(x)   __builtin_expect(!!(x), 1)
+            #define unlikely(x) __builtin_expect(!!(x), 0)
+        #endif
+      }
+
+      /* "tests/precision_mandelbrot.pyx":90
+ *     cdef _cydecimal_ptr r2 = <_cydecimal_ptr>malloc(height*sizeof(_cydecimal))
+ *     cdef list data
+ *     for i in prange(width, nogil=True, schedule='dynamic', num_threads=8):             # <<<<<<<<<<<<<<
+ *         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))
+ * 
+ */
+      /*finally:*/ {
+        /*normal exit:*/{
+          #ifdef WITH_THREAD
+          __Pyx_FastGIL_Forget();
+          Py_BLOCK_THREADS
+          #endif
+          goto __pyx_L5;
+        }
+        __pyx_L5:;
+      }
+  }
+
+  /* "tests/precision_mandelbrot.pyx":93
+ *         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))
+ * 
+ *     print('started allocation')             # <<<<<<<<<<<<<<
+ *     linspace(r1, width, &n_recip, xmin, xmax)
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__5, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 93, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "tests/precision_mandelbrot.pyx":94
+ * 
+ *     print('started allocation')
+ *     linspace(r1, width, &n_recip, xmin, xmax)             # <<<<<<<<<<<<<<
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ *     print('done allocation')
+ */
+  __pyx_f_5tests_20precision_mandelbrot_linspace(__pyx_v_r1, __pyx_v_width, (&__pyx_v_n_recip), __pyx_v_xmin, __pyx_v_xmax); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 94, __pyx_L1_error)
+
+  /* "tests/precision_mandelbrot.pyx":95
+ *     print('started allocation')
+ *     linspace(r1, width, &n_recip, xmin, xmax)
+ *     linspace(r2, height, &n_recip, ymin, ymax)             # <<<<<<<<<<<<<<
+ *     print('done allocation')
+ *     main1(arr,r1, r2, width, height, maxiter)
+ */
+  __pyx_f_5tests_20precision_mandelbrot_linspace(__pyx_v_r2, __pyx_v_height, (&__pyx_v_n_recip), __pyx_v_ymin, __pyx_v_ymax); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 95, __pyx_L1_error)
+
+  /* "tests/precision_mandelbrot.pyx":96
+ *     linspace(r1, width, &n_recip, xmin, xmax)
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ *     print('done allocation')             # <<<<<<<<<<<<<<
+ *     main1(arr,r1, r2, width, height, maxiter)
+ *     print('done allocation1')
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 96, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "tests/precision_mandelbrot.pyx":97
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ *     print('done allocation')
+ *     main1(arr,r1, r2, width, height, maxiter)             # <<<<<<<<<<<<<<
+ *     print('done allocation1')
+ *     free(r2)
+ */
+  __pyx_f_5tests_20precision_mandelbrot_main1(__pyx_v_arr, __pyx_v_r1, __pyx_v_r2, __pyx_v_width, __pyx_v_height, __pyx_v_maxiter); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 97, __pyx_L1_error)
+
+  /* "tests/precision_mandelbrot.pyx":98
+ *     print('done allocation')
+ *     main1(arr,r1, r2, width, height, maxiter)
+ *     print('done allocation1')             # <<<<<<<<<<<<<<
+ *     free(r2)
+ *     free(r1)
+ */
+  __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__7, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 98, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "tests/precision_mandelbrot.pyx":99
+ *     main1(arr,r1, r2, width, height, maxiter)
+ *     print('done allocation1')
+ *     free(r2)             # <<<<<<<<<<<<<<
+ *     free(r1)
+ *     data = ui_2_list(arr,width, height)
+ */
+  free(__pyx_v_r2);
+
+  /* "tests/precision_mandelbrot.pyx":100
+ *     print('done allocation1')
+ *     free(r2)
+ *     free(r1)             # <<<<<<<<<<<<<<
+ *     data = ui_2_list(arr,width, height)
+ *     return data
+ */
+  free(__pyx_v_r1);
+
+  /* "tests/precision_mandelbrot.pyx":101
+ *     free(r2)
+ *     free(r1)
+ *     data = ui_2_list(arr,width, height)             # <<<<<<<<<<<<<<
+ *     return data
+ */
+  __pyx_t_1 = __pyx_f_5tests_20precision_mandelbrot_ui_2_list(__pyx_v_arr, __pyx_v_width, __pyx_v_height); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 101, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_data = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "tests/precision_mandelbrot.pyx":102
+ *     free(r1)
+ *     data = ui_2_list(arr,width, height)
+ *     return data             # <<<<<<<<<<<<<<
+ */
+  __Pyx_XDECREF(__pyx_r);
+  __Pyx_INCREF(__pyx_v_data);
+  __pyx_r = __pyx_v_data;
+  goto __pyx_L0;
+
+  /* "tests/precision_mandelbrot.pyx":83
+ *     return arr
+ * 
+ * cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):             # <<<<<<<<<<<<<<
+ *     print('in function')
+ *     cdef unsigned int i,j
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("tests.precision_mandelbrot.main", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_data);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
 static PyMethodDef __pyx_methods[] = {
-  {"new_decimal_from_string", (PyCFunction)__pyx_pw_5tests_5cynum_1new_decimal_from_string, METH_O, 0},
-  {"norm_decimal_from_string", (PyCFunction)__pyx_pw_5tests_5cynum_3norm_decimal_from_string, METH_O, 0},
-  {"norm_decimal_from_double", (PyCFunction)__pyx_pw_5tests_5cynum_5norm_decimal_from_double, METH_O, 0},
-  {"new_decimal_from_double", (PyCFunction)__pyx_pw_5tests_5cynum_7new_decimal_from_double, METH_O, 0},
-  {"new_decimal", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_9new_decimal, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"norm_decimal_from_int", (PyCFunction)__pyx_pw_5tests_5cynum_11norm_decimal_from_int, METH_O, 0},
-  {"new_decimal_from_int", (PyCFunction)__pyx_pw_5tests_5cynum_13new_decimal_from_int, METH_O, 0},
-  {"normalize_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_15normalize_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"right_shift_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_17right_shift_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"left_shift_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_19left_shift_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"greater_than_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_21greater_than_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"greater_than_exp", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_23greater_than_exp, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"true_greater_than", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_25true_greater_than, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"less_than_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_27less_than_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"less_than_exp", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_29less_than_exp, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"true_less_than", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_31true_less_than, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"eq_digits", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_33eq_digits, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"eq_exp", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_35eq_exp, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"true_eq", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_37true_eq, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"add_decimals", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_39add_decimals, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"subtract_decimals", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_41subtract_decimals, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"n_precision", (PyCFunction)__pyx_pw_5tests_5cynum_43n_precision, METH_O, 0},
-  {"n_digits", (PyCFunction)__pyx_pw_5tests_5cynum_45n_digits, METH_O, 0},
-  {"n_whole_digits", (PyCFunction)__pyx_pw_5tests_5cynum_47n_whole_digits, METH_O, 0},
-  {"dec_2_str", (PyCFunction)__pyx_pw_5tests_5cynum_49dec_2_str, METH_O, 0},
-  {"printf_dec", (PyCFunction)__pyx_pw_5tests_5cynum_51printf_dec, METH_O, 0},
-  {"square_decimal", (PyCFunction)__pyx_pw_5tests_5cynum_53square_decimal, METH_O, 0},
-  {"mult_decimals", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_55mult_decimals, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"mult_decimal_decimal_digit", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_5tests_5cynum_57mult_decimal_decimal_digit, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"empty_decimal", (PyCFunction)__pyx_pw_5tests_5cynum_59empty_decimal, METH_NOARGS, 0},
-  {"test", (PyCFunction)__pyx_pw_5tests_5cynum_61test, METH_NOARGS, 0},
   {0, 0, 0, 0}
 };
 #ifndef CYTHON_SMALL_CODE
@@ -12494,8 +9994,6 @@ static PyMethodDef __pyx_methods[] = {
 
 static int __Pyx_CreateStringTabAndInitStrings(void) {
   __Pyx_StringTabEntry __pyx_string_tab[] = {
-    {&__pyx_kp_u_0, __pyx_k_0, sizeof(__pyx_k_0), 0, 1, 0, 0},
-    {&__pyx_n_u_E, __pyx_k_E, sizeof(__pyx_k_E), 0, 1, 0, 1},
     {&__pyx_n_s_IndexError, __pyx_k_IndexError, sizeof(__pyx_k_IndexError), 0, 0, 1, 1},
     {&__pyx_n_s_KeyError, __pyx_k_KeyError, sizeof(__pyx_k_KeyError), 0, 0, 1, 1},
     {&__pyx_kp_s_No_value_specified_for_struct_at, __pyx_k_No_value_specified_for_struct_at, sizeof(__pyx_k_No_value_specified_for_struct_at), 0, 0, 1, 0},
@@ -12504,26 +10002,28 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_OverflowError, __pyx_k_OverflowError, sizeof(__pyx_k_OverflowError), 0, 0, 1, 1},
     {&__pyx_n_s_TypeError, __pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 0, 1, 1},
     {&__pyx_n_s_ValueError, __pyx_k_ValueError, sizeof(__pyx_k_ValueError), 0, 0, 1, 1},
-    {&__pyx_kp_u__4, __pyx_k__4, sizeof(__pyx_k__4), 0, 1, 0, 0},
-    {&__pyx_n_s__6, __pyx_k__6, sizeof(__pyx_k__6), 0, 0, 1, 1},
+    {&__pyx_n_s__8, __pyx_k__8, sizeof(__pyx_k__8), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
     {&__pyx_n_s_digits, __pyx_k_digits, sizeof(__pyx_k_digits), 0, 0, 1, 1},
     {&__pyx_n_u_digits, __pyx_k_digits, sizeof(__pyx_k_digits), 0, 1, 0, 1},
+    {&__pyx_kp_u_done_allocation, __pyx_k_done_allocation, sizeof(__pyx_k_done_allocation), 0, 1, 0, 0},
+    {&__pyx_kp_u_done_allocation1, __pyx_k_done_allocation1, sizeof(__pyx_k_done_allocation1), 0, 1, 0, 0},
     {&__pyx_n_s_enumerate, __pyx_k_enumerate, sizeof(__pyx_k_enumerate), 0, 0, 1, 1},
     {&__pyx_n_s_exp, __pyx_k_exp, sizeof(__pyx_k_exp), 0, 0, 1, 1},
     {&__pyx_n_u_exp, __pyx_k_exp, sizeof(__pyx_k_exp), 0, 1, 0, 1},
     {&__pyx_n_s_first, __pyx_k_first, sizeof(__pyx_k_first), 0, 0, 1, 1},
-    {&__pyx_n_s_index, __pyx_k_index, sizeof(__pyx_k_index), 0, 0, 1, 1},
-    {&__pyx_n_s_lstrip, __pyx_k_lstrip, sizeof(__pyx_k_lstrip), 0, 0, 1, 1},
+    {&__pyx_kp_u_in_function, __pyx_k_in_function, sizeof(__pyx_k_in_function), 0, 1, 0, 0},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
     {&__pyx_n_s_mode, __pyx_k_mode, sizeof(__pyx_k_mode), 0, 0, 1, 1},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
     {&__pyx_n_s_negative, __pyx_k_negative, sizeof(__pyx_k_negative), 0, 0, 1, 1},
     {&__pyx_n_u_negative, __pyx_k_negative, sizeof(__pyx_k_negative), 0, 1, 0, 1},
     {&__pyx_n_s_num, __pyx_k_num, sizeof(__pyx_k_num), 0, 0, 1, 1},
+    {&__pyx_n_s_print, __pyx_k_print, sizeof(__pyx_k_print), 0, 0, 1, 1},
     {&__pyx_n_s_range, __pyx_k_range, sizeof(__pyx_k_range), 0, 0, 1, 1},
     {&__pyx_n_s_res, __pyx_k_res, sizeof(__pyx_k_res), 0, 0, 1, 1},
     {&__pyx_n_s_second, __pyx_k_second, sizeof(__pyx_k_second), 0, 0, 1, 1},
+    {&__pyx_kp_u_started_allocation, __pyx_k_started_allocation, sizeof(__pyx_k_started_allocation), 0, 1, 0, 0},
     {&__pyx_n_s_t, __pyx_k_t, sizeof(__pyx_k_t), 0, 0, 1, 1},
     {&__pyx_n_s_test, __pyx_k_test, sizeof(__pyx_k_test), 0, 0, 1, 1},
     {&__pyx_n_s_x, __pyx_k_x, sizeof(__pyx_k_x), 0, 0, 1, 1},
@@ -12533,7 +10033,8 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
 }
 /* #### Code section: cached_builtins ### */
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 426, __pyx_L1_error)
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 21, __pyx_L1_error)
+  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 84, __pyx_L1_error)
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(1, 83, __pyx_L1_error)
   __pyx_builtin_OverflowError = __Pyx_GetBuiltinName(__pyx_n_s_OverflowError); if (!__pyx_builtin_OverflowError) __PYX_ERR(1, 83, __pyx_L1_error)
   __pyx_builtin_enumerate = __Pyx_GetBuiltinName(__pyx_n_s_enumerate); if (!__pyx_builtin_enumerate) __PYX_ERR(1, 86, __pyx_L1_error)
@@ -12583,16 +10084,49 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "tests/cynum.pxd":611
- *     s = s[:ind].lstrip('0')+s[ind:]
- *     if truth:
- *         s = '-'+(s[1:].lstrip('0'))             # <<<<<<<<<<<<<<
- *     return s
+  /* "tests/precision_mandelbrot.pyx":84
  * 
+ * cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):
+ *     print('in function')             # <<<<<<<<<<<<<<
+ *     cdef unsigned int i,j
+ *     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
  */
-  __pyx_slice__5 = PySlice_New(__pyx_int_1, Py_None, Py_None); if (unlikely(!__pyx_slice__5)) __PYX_ERR(0, 611, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_slice__5);
-  __Pyx_GIVEREF(__pyx_slice__5);
+  __pyx_tuple__4 = PyTuple_Pack(1, __pyx_kp_u_in_function); if (unlikely(!__pyx_tuple__4)) __PYX_ERR(0, 84, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__4);
+  __Pyx_GIVEREF(__pyx_tuple__4);
+
+  /* "tests/precision_mandelbrot.pyx":93
+ *         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))
+ * 
+ *     print('started allocation')             # <<<<<<<<<<<<<<
+ *     linspace(r1, width, &n_recip, xmin, xmax)
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ */
+  __pyx_tuple__5 = PyTuple_Pack(1, __pyx_kp_u_started_allocation); if (unlikely(!__pyx_tuple__5)) __PYX_ERR(0, 93, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__5);
+  __Pyx_GIVEREF(__pyx_tuple__5);
+
+  /* "tests/precision_mandelbrot.pyx":96
+ *     linspace(r1, width, &n_recip, xmin, xmax)
+ *     linspace(r2, height, &n_recip, ymin, ymax)
+ *     print('done allocation')             # <<<<<<<<<<<<<<
+ *     main1(arr,r1, r2, width, height, maxiter)
+ *     print('done allocation1')
+ */
+  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_u_done_allocation); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 96, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__6);
+  __Pyx_GIVEREF(__pyx_tuple__6);
+
+  /* "tests/precision_mandelbrot.pyx":98
+ *     print('done allocation')
+ *     main1(arr,r1, r2, width, height, maxiter)
+ *     print('done allocation1')             # <<<<<<<<<<<<<<
+ *     free(r2)
+ *     free(r1)
+ */
+  __pyx_tuple__7 = PyTuple_Pack(1, __pyx_kp_u_done_allocation1); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 98, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_tuple__7);
+  __Pyx_GIVEREF(__pyx_tuple__7);
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -12602,8 +10136,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 /* #### Code section: init_constants ### */
 
 static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {
-  if (__Pyx_CreateStringTabAndInitStrings() < 0) __PYX_ERR(2, 1, __pyx_L1_error);
-  __pyx_int_1 = PyInt_FromLong(1); if (unlikely(!__pyx_int_1)) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_CreateStringTabAndInitStrings() < 0) __PYX_ERR(0, 1, __pyx_L1_error);
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -12611,7 +10144,16 @@ static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {
 /* #### Code section: init_globals ### */
 
 static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {
+  /* InitThreads.init */
+  #if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0
+PyEval_InitThreads();
+#endif
+
+if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 1, __pyx_L1_error)
+
   return 0;
+  __pyx_L1_error:;
+  return -1;
 }
 /* #### Code section: init_module ### */
 
@@ -12646,17 +10188,7 @@ static int __Pyx_modinit_function_export_code(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__Pyx_modinit_function_export_code", 0);
   /*--- Function export code ---*/
-  if (__Pyx_ExportFunction("_norm_decimal_from_double", (void (*)(void))_norm_decimal_from_double, "struct _cydecimal (double const )") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_decimal_from_string", (void (*)(void))_decimal_from_string, "struct _cydecimal (char const *)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_norm_decimal_from_string", (void (*)(void))_norm_decimal_from_string, "struct _cydecimal (char const *)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_decimal_from_int", (void (*)(void))_decimal_from_int, "struct _cydecimal (int)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_norm_decimal_from_int", (void (*)(void))_norm_decimal_from_int, "struct _cydecimal (int)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_decimal_from_double", (void (*)(void))_decimal_from_double, "struct _cydecimal (double const )") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_subtract_decimals", (void (*)(void))_subtract_decimals, "struct _cydecimal (struct _cydecimal, struct _cydecimal)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_add_decimals", (void (*)(void))_add_decimals, "struct _cydecimal (struct _cydecimal, struct _cydecimal)") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_mult_decimals", (void (*)(void))_mult_decimals, "struct _cydecimal (_cydecimal_ptr const , _cydecimal_ptr const )") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_square_decimal", (void (*)(void))_square_decimal, "struct _cydecimal (_cydecimal_ptr const )") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
-  if (__Pyx_ExportFunction("_mult_decimal_decimal_digit", (void (*)(void))_mult_decimal_decimal_digit, "struct _cydecimal (_cydecimal_ptr const , _cydecimal_ptr const , int const )") < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_ExportFunction("main", (void (*)(void))__pyx_f_5tests_20precision_mandelbrot_main, "PyObject *(struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , unsigned int const , unsigned int const , unsigned int const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -12690,20 +10222,42 @@ static int __Pyx_modinit_variable_import_code(void) {
 
 static int __Pyx_modinit_function_import_code(void) {
   __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__Pyx_modinit_function_import_code", 0);
   /*--- Function import code ---*/
+  __pyx_t_1 = PyImport_ImportModule("tests.cynum"); if (!__pyx_t_1) __PYX_ERR(0, 1, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_norm_decimal_from_double", (void (**)(void))&__pyx_f_5tests_5cynum__norm_decimal_from_double, "struct _cydecimal (double const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_decimal_from_string", (void (**)(void))&__pyx_f_5tests_5cynum__decimal_from_string, "struct _cydecimal (char const *)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_norm_decimal_from_string", (void (**)(void))&__pyx_f_5tests_5cynum__norm_decimal_from_string, "struct _cydecimal (char const *)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_decimal_from_int", (void (**)(void))&__pyx_f_5tests_5cynum__decimal_from_int, "struct _cydecimal (int)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_norm_decimal_from_int", (void (**)(void))&__pyx_f_5tests_5cynum__norm_decimal_from_int, "struct _cydecimal (int)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_decimal_from_double", (void (**)(void))&__pyx_f_5tests_5cynum__decimal_from_double, "struct _cydecimal (double const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_subtract_decimals", (void (**)(void))&__pyx_f_5tests_5cynum__subtract_decimals, "struct _cydecimal (struct _cydecimal, struct _cydecimal)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_add_decimals", (void (**)(void))&__pyx_f_5tests_5cynum__add_decimals, "struct _cydecimal (struct _cydecimal, struct _cydecimal)") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_mult_decimals", (void (**)(void))&__pyx_f_5tests_5cynum__mult_decimals, "struct _cydecimal (_cydecimal_ptr const , _cydecimal_ptr const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_square_decimal", (void (**)(void))&__pyx_f_5tests_5cynum__square_decimal, "struct _cydecimal (_cydecimal_ptr const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  if (__Pyx_ImportFunction_3_0_0(__pyx_t_1, "_mult_decimal_decimal_digit", (void (**)(void))&__pyx_f_5tests_5cynum__mult_decimal_decimal_digit, "struct _cydecimal (_cydecimal_ptr const , _cydecimal_ptr const , unsigned int const )") < 0) __PYX_ERR(0, 1, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_RefNannyFinishContext();
   return 0;
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_RefNannyFinishContext();
+  return -1;
 }
 
 
 #if PY_MAJOR_VERSION >= 3
 #if CYTHON_PEP489_MULTI_PHASE_INIT
 static PyObject* __pyx_pymod_create(PyObject *spec, PyModuleDef *def); /*proto*/
-static int __pyx_pymod_exec_cynum(PyObject* module); /*proto*/
+static int __pyx_pymod_exec_precision_mandelbrot(PyObject* module); /*proto*/
 static PyModuleDef_Slot __pyx_moduledef_slots[] = {
   {Py_mod_create, (void*)__pyx_pymod_create},
-  {Py_mod_exec, (void*)__pyx_pymod_exec_cynum},
+  {Py_mod_exec, (void*)__pyx_pymod_exec_precision_mandelbrot},
   {0, NULL}
 };
 #endif
@@ -12716,7 +10270,7 @@ namespace {
   #endif
   {
       PyModuleDef_HEAD_INIT,
-      "cynum",
+      "precision_mandelbrot",
       0, /* m_doc */
     #if CYTHON_PEP489_MULTI_PHASE_INIT
       0, /* m_size */
@@ -12764,11 +10318,11 @@ namespace {
 
 
 #if PY_MAJOR_VERSION < 3
-__Pyx_PyMODINIT_FUNC initcynum(void) CYTHON_SMALL_CODE; /*proto*/
-__Pyx_PyMODINIT_FUNC initcynum(void)
+__Pyx_PyMODINIT_FUNC initprecision_mandelbrot(void) CYTHON_SMALL_CODE; /*proto*/
+__Pyx_PyMODINIT_FUNC initprecision_mandelbrot(void)
 #else
-__Pyx_PyMODINIT_FUNC PyInit_cynum(void) CYTHON_SMALL_CODE; /*proto*/
-__Pyx_PyMODINIT_FUNC PyInit_cynum(void)
+__Pyx_PyMODINIT_FUNC PyInit_precision_mandelbrot(void) CYTHON_SMALL_CODE; /*proto*/
+__Pyx_PyMODINIT_FUNC PyInit_precision_mandelbrot(void)
 #if CYTHON_PEP489_MULTI_PHASE_INIT
 {
   return PyModuleDef_Init(&__pyx_moduledef);
@@ -12849,7 +10403,7 @@ bad:
 }
 
 
-static CYTHON_SMALL_CODE int __pyx_pymod_exec_cynum(PyObject *__pyx_pyinit_module)
+static CYTHON_SMALL_CODE int __pyx_pymod_exec_precision_mandelbrot(PyObject *__pyx_pyinit_module)
 #endif
 #endif
 {
@@ -12866,7 +10420,7 @@ static CYTHON_SMALL_CODE int __pyx_pymod_exec_cynum(PyObject *__pyx_pyinit_modul
   #if CYTHON_PEP489_MULTI_PHASE_INIT
   if (__pyx_m) {
     if (__pyx_m == __pyx_pyinit_module) return 0;
-    PyErr_SetString(PyExc_RuntimeError, "Module 'cynum' has already been imported. Re-initialisation is not supported.");
+    PyErr_SetString(PyExc_RuntimeError, "Module 'precision_mandelbrot' has already been imported. Re-initialisation is not supported.");
     return -1;
   }
   #elif PY_MAJOR_VERSION >= 3
@@ -12878,29 +10432,29 @@ static CYTHON_SMALL_CODE int __pyx_pymod_exec_cynum(PyObject *__pyx_pyinit_modul
   Py_INCREF(__pyx_m);
   #else
   #if PY_MAJOR_VERSION < 3
-  __pyx_m = Py_InitModule4("cynum", __pyx_methods, 0, 0, PYTHON_API_VERSION); Py_XINCREF(__pyx_m);
-  if (unlikely(!__pyx_m)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_m = Py_InitModule4("precision_mandelbrot", __pyx_methods, 0, 0, PYTHON_API_VERSION); Py_XINCREF(__pyx_m);
+  if (unlikely(!__pyx_m)) __PYX_ERR(0, 1, __pyx_L1_error)
   #elif CYTHON_USE_MODULE_STATE
-  __pyx_t_1 = PyModule_Create(&__pyx_moduledef); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_t_1 = PyModule_Create(&__pyx_moduledef); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1, __pyx_L1_error)
   {
     int add_module_result = PyState_AddModule(__pyx_t_1, &__pyx_moduledef);
-    __pyx_t_1 = 0; /* transfer ownership from __pyx_t_1 to cynum pseudovariable */
-    if (unlikely((add_module_result < 0))) __PYX_ERR(2, 1, __pyx_L1_error)
+    __pyx_t_1 = 0; /* transfer ownership from __pyx_t_1 to precision_mandelbrot pseudovariable */
+    if (unlikely((add_module_result < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
     pystate_addmodule_run = 1;
   }
   #else
   __pyx_m = PyModule_Create(&__pyx_moduledef);
-  if (unlikely(!__pyx_m)) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (unlikely(!__pyx_m)) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #endif
   CYTHON_UNUSED_VAR(__pyx_t_1);
-  __pyx_d = PyModule_GetDict(__pyx_m); if (unlikely(!__pyx_d)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_d = PyModule_GetDict(__pyx_m); if (unlikely(!__pyx_d)) __PYX_ERR(0, 1, __pyx_L1_error)
   Py_INCREF(__pyx_d);
-  __pyx_b = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); if (unlikely(!__pyx_b)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_b = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); if (unlikely(!__pyx_b)) __PYX_ERR(0, 1, __pyx_L1_error)
   Py_INCREF(__pyx_b);
-  __pyx_cython_runtime = PyImport_AddModule((char *) "cython_runtime"); if (unlikely(!__pyx_cython_runtime)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_cython_runtime = PyImport_AddModule((char *) "cython_runtime"); if (unlikely(!__pyx_cython_runtime)) __PYX_ERR(0, 1, __pyx_L1_error)
   Py_INCREF(__pyx_cython_runtime);
-  if (PyObject_SetAttrString(__pyx_m, "__builtins__", __pyx_b) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (PyObject_SetAttrString(__pyx_m, "__builtins__", __pyx_b) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #if CYTHON_REFNANNY
 __Pyx_RefNanny = __Pyx_RefNannyImportAPI("refnanny");
 if (!__Pyx_RefNanny) {
@@ -12910,31 +10464,31 @@ if (!__Pyx_RefNanny) {
       Py_FatalError("failed to import 'refnanny' module");
 }
 #endif
-  __Pyx_RefNannySetupContext("__Pyx_PyMODINIT_FUNC PyInit_cynum(void)", 0);
-  if (__Pyx_check_binary_version() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  __Pyx_RefNannySetupContext("__Pyx_PyMODINIT_FUNC PyInit_precision_mandelbrot(void)", 0);
+  if (__Pyx_check_binary_version() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #ifdef __Pxy_PyFrame_Initialize_Offsets
   __Pxy_PyFrame_Initialize_Offsets();
   #endif
-  __pyx_empty_tuple = PyTuple_New(0); if (unlikely(!__pyx_empty_tuple)) __PYX_ERR(2, 1, __pyx_L1_error)
-  __pyx_empty_bytes = PyBytes_FromStringAndSize("", 0); if (unlikely(!__pyx_empty_bytes)) __PYX_ERR(2, 1, __pyx_L1_error)
-  __pyx_empty_unicode = PyUnicode_FromStringAndSize("", 0); if (unlikely(!__pyx_empty_unicode)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_empty_tuple = PyTuple_New(0); if (unlikely(!__pyx_empty_tuple)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_empty_bytes = PyBytes_FromStringAndSize("", 0); if (unlikely(!__pyx_empty_bytes)) __PYX_ERR(0, 1, __pyx_L1_error)
+  __pyx_empty_unicode = PyUnicode_FromStringAndSize("", 0); if (unlikely(!__pyx_empty_unicode)) __PYX_ERR(0, 1, __pyx_L1_error)
   #ifdef __Pyx_CyFunction_USED
-  if (__pyx_CyFunction_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_CyFunction_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #ifdef __Pyx_FusedFunction_USED
-  if (__pyx_FusedFunction_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_FusedFunction_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #ifdef __Pyx_Coroutine_USED
-  if (__pyx_Coroutine_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_Coroutine_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #ifdef __Pyx_Generator_USED
-  if (__pyx_Generator_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_Generator_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #ifdef __Pyx_AsyncGen_USED
-  if (__pyx_AsyncGen_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_AsyncGen_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   #ifdef __Pyx_StopAsyncIteration_USED
-  if (__pyx_StopAsyncIteration_init(__pyx_m) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_StopAsyncIteration_init(__pyx_m) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   /*--- Library function declarations ---*/
   /*--- Threads initialization code ---*/
@@ -12942,48 +10496,57 @@ if (!__Pyx_RefNanny) {
   PyEval_InitThreads();
   #endif
   /*--- Initialize various global constants etc. ---*/
-  if (__Pyx_InitConstants() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_InitConstants() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   stringtab_initialized = 1;
-  if (__Pyx_InitGlobals() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_InitGlobals() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
-  if (__Pyx_init_sys_getdefaultencoding_params() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_init_sys_getdefaultencoding_params() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
-  if (__pyx_module_is_main_tests__cynum) {
-    if (PyObject_SetAttr(__pyx_m, __pyx_n_s_name, __pyx_n_s_main) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__pyx_module_is_main_tests__precision_mandelbrot) {
+    if (PyObject_SetAttr(__pyx_m, __pyx_n_s_name, __pyx_n_s_main) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   }
   #if PY_MAJOR_VERSION >= 3
   {
-    PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(2, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "tests.cynum")) {
-      if (unlikely((PyDict_SetItemString(modules, "tests.cynum", __pyx_m) < 0))) __PYX_ERR(2, 1, __pyx_L1_error)
+    PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(0, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "tests.precision_mandelbrot")) {
+      if (unlikely((PyDict_SetItemString(modules, "tests.precision_mandelbrot", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
     }
   }
   #endif
   /*--- Builtin init code ---*/
-  if (__Pyx_InitCachedBuiltins() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_InitCachedBuiltins() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   /*--- Constants init code ---*/
-  if (__Pyx_InitCachedConstants() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_InitCachedConstants() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   /*--- Global type/function init code ---*/
   (void)__Pyx_modinit_global_init_code();
   (void)__Pyx_modinit_variable_export_code();
-  if (unlikely((__Pyx_modinit_function_export_code() < 0))) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (unlikely((__Pyx_modinit_function_export_code() < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
   (void)__Pyx_modinit_type_init_code();
   (void)__Pyx_modinit_type_import_code();
   (void)__Pyx_modinit_variable_import_code();
-  (void)__Pyx_modinit_function_import_code();
+  if (unlikely((__Pyx_modinit_function_import_code() < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
   /*--- Execution code ---*/
   #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
-  if (__Pyx_patch_abc() < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (__Pyx_patch_abc() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
 
-  /* "tests/cynum.pyx":1
- * # cython: language_level=3, binding=False, infer_types=False, wraparound=False, boundscheck=False, cdivision=True, overflowcheck=False, overflowcheck.fold=False, nonecheck=False, initializedcheck=False, always_allow_keywords=False, c_api_binop_methods=True, warn.undeclared=True, CYTHON_ASSUME_SAFE_MACROS=True, CYTHON_FAST_GIL=True, CYTHON_USE_DICT_VERSIONS=True, CYTHON_ASSUME_SAFE_SIZE=True             # <<<<<<<<<<<<<<
- * # disutils: language=c
- * from libc.math cimport fabs, floor, ceil
+  /* "tests/precision_mandelbrot.pyx":16
+ * 
+ * 
+ * cdef _cydecimal FOUR = ((_decimal_from_double(4)))             # <<<<<<<<<<<<<<
+ * 
+ * cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:
  */
-  __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(2, 1, __pyx_L1_error)
+  __pyx_v_5tests_20precision_mandelbrot_FOUR = __pyx_f_5tests_5cynum__decimal_from_double(4.0);
+
+  /* "tests/precision_mandelbrot.pyx":1
+ * # cython: language_level=3, binding=False, infer_types=False, wraparound=False, boundscheck=False, cdivision=True, overflowcheck=False, overflowcheck.fold=False, nonecheck=False, initializedcheck=False, always_allow_keywords=False, c_api_binop_methods=True, warn.undeclared=True, CYTHON_ASSUME_SAFE_MACROS=True, CYTHON_FAST_GIL=True, CYTHON_USE_DICT_VERSIONS=True, CYTHON_ASSUME_SAFE_SIZE=True, CYTHON_USE_UNICODE_WRITER=True, CYTHON_UNPACK_METHODS=True, CYTHON_USE_PYLONG_INTERNALS=True, CYTHON_USE_PYLIST_INTERNALS=True, CYTHON_USE_UNICODE_INTERNALS=True, CYTHON_USE_PYTYPE_LOOKUP=True             # <<<<<<<<<<<<<<
+ * # disutils: language=c
+ * 
+ */
+  __pyx_t_2 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_test, __pyx_t_2) < 0) __PYX_ERR(2, 1, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_test, __pyx_t_2) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /*--- Wrapped vars code ---*/
@@ -12993,7 +10556,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_XDECREF(__pyx_t_2);
   if (__pyx_m) {
     if (__pyx_d && stringtab_initialized) {
-      __Pyx_AddTraceback("init tests.cynum", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init tests.precision_mandelbrot", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     #if !CYTHON_USE_MODULE_STATE
     Py_CLEAR(__pyx_m);
@@ -13007,7 +10570,7 @@ if (!__Pyx_RefNanny) {
     }
     #endif
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init tests.cynum");
+    PyErr_SetString(PyExc_ImportError, "init tests.precision_mandelbrot");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
@@ -14092,461 +11655,17 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     return 0;
 }
 
-/* decode_c_string */
-static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
-         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
-         const char* encoding, const char* errors,
-         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
-    Py_ssize_t length;
-    if (unlikely((start < 0) | (stop < 0))) {
-        size_t slen = strlen(cstring);
-        if (unlikely(slen > (size_t) PY_SSIZE_T_MAX)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "c-string too long to convert to Python");
-            return NULL;
-        }
-        length = (Py_ssize_t) slen;
-        if (start < 0) {
-            start += length;
-            if (start < 0)
-                start = 0;
-        }
-        if (stop < 0)
-            stop += length;
-    }
-    if (unlikely(stop <= start))
-        return __Pyx_NewRef(__pyx_empty_unicode);
-    length = stop - start;
-    cstring += start;
-    if (decode_func) {
-        return decode_func(cstring, length, errors);
-    } else {
-        return PyUnicode_Decode(cstring, length, encoding, errors);
-    }
-}
-
-/* GetItemInt */
-static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
-    PyObject *r;
-    if (unlikely(!j)) return NULL;
-    r = PyObject_GetItem(o, j);
-    Py_DECREF(j);
-    return r;
-}
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
-                                                              CYTHON_NCP_UNUSED int wraparound,
-                                                              CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    Py_ssize_t wrapped_i = i;
-    if (wraparound & unlikely(i < 0)) {
-        wrapped_i += PyList_GET_SIZE(o);
-    }
-    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyList_GET_SIZE(o)))) {
-        PyObject *r = PyList_GET_ITEM(o, wrapped_i);
-        Py_INCREF(r);
-        return r;
-    }
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-#else
-    return PySequence_GetItem(o, i);
-#endif
-}
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
-                                                              CYTHON_NCP_UNUSED int wraparound,
-                                                              CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    Py_ssize_t wrapped_i = i;
-    if (wraparound & unlikely(i < 0)) {
-        wrapped_i += PyTuple_GET_SIZE(o);
-    }
-    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyTuple_GET_SIZE(o)))) {
-        PyObject *r = PyTuple_GET_ITEM(o, wrapped_i);
-        Py_INCREF(r);
-        return r;
-    }
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-#else
-    return PySequence_GetItem(o, i);
-#endif
-}
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
-                                                     CYTHON_NCP_UNUSED int wraparound,
-                                                     CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
-    if (is_list || PyList_CheckExact(o)) {
-        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
-            PyObject *r = PyList_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
-        }
-    }
-    else if (PyTuple_CheckExact(o)) {
-        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
-            PyObject *r = PyTuple_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
-        }
-    } else {
-        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
-        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (mm && mm->mp_subscript) {
-            PyObject *r, *key = PyInt_FromSsize_t(i);
-            if (unlikely(!key)) return NULL;
-            r = mm->mp_subscript(o, key);
-            Py_DECREF(key);
-            return r;
-        }
-        if (likely(sm && sm->sq_item)) {
-            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
-                Py_ssize_t l = sm->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                        return NULL;
-                    PyErr_Clear();
-                }
-            }
-            return sm->sq_item(o, i);
-        }
-    }
-#else
-    if (is_list || PySequence_Check(o)) {
-        return PySequence_GetItem(o, i);
-    }
-#endif
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-}
-
-/* PyFunctionFastCall */
-#if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
-static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
-                                               PyObject *globals) {
-    PyFrameObject *f;
-    PyThreadState *tstate = __Pyx_PyThreadState_Current;
-    PyObject **fastlocals;
-    Py_ssize_t i;
-    PyObject *result;
-    assert(globals != NULL);
-    /* XXX Perhaps we should create a specialized
-       PyFrame_New() that doesn't take locals, but does
-       take builtins without sanity checking them.
-       */
-    assert(tstate != NULL);
-    f = PyFrame_New(tstate, co, globals, NULL);
-    if (f == NULL) {
-        return NULL;
-    }
-    fastlocals = __Pyx_PyFrame_GetLocalsplus(f);
-    for (i = 0; i < na; i++) {
-        Py_INCREF(*args);
-        fastlocals[i] = *args++;
-    }
-    result = PyEval_EvalFrameEx(f,0);
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
-    return result;
-}
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs) {
-    PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
-    PyObject *globals = PyFunction_GET_GLOBALS(func);
-    PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
-    PyObject *closure;
-#if PY_MAJOR_VERSION >= 3
-    PyObject *kwdefs;
-#endif
-    PyObject *kwtuple, **k;
-    PyObject **d;
-    Py_ssize_t nd;
-    Py_ssize_t nk;
-    PyObject *result;
-    assert(kwargs == NULL || PyDict_Check(kwargs));
-    nk = kwargs ? PyDict_Size(kwargs) : 0;
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object"))) {
-        return NULL;
-    }
-    if (
-#if PY_MAJOR_VERSION >= 3
-            co->co_kwonlyargcount == 0 &&
-#endif
-            likely(kwargs == NULL || nk == 0) &&
-            co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
-        if (argdefs == NULL && co->co_argcount == nargs) {
-            result = __Pyx_PyFunction_FastCallNoKw(co, args, nargs, globals);
-            goto done;
-        }
-        else if (nargs == 0 && argdefs != NULL
-                 && co->co_argcount == Py_SIZE(argdefs)) {
-            /* function called with no arguments, but all parameters have
-               a default value: use default values as arguments .*/
-            args = &PyTuple_GET_ITEM(argdefs, 0);
-            result =__Pyx_PyFunction_FastCallNoKw(co, args, Py_SIZE(argdefs), globals);
-            goto done;
-        }
-    }
-    if (kwargs != NULL) {
-        Py_ssize_t pos, i;
-        kwtuple = PyTuple_New(2 * nk);
-        if (kwtuple == NULL) {
-            result = NULL;
-            goto done;
-        }
-        k = &PyTuple_GET_ITEM(kwtuple, 0);
-        pos = i = 0;
-        while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
-            Py_INCREF(k[i]);
-            Py_INCREF(k[i+1]);
-            i += 2;
-        }
-        nk = i / 2;
-    }
-    else {
-        kwtuple = NULL;
-        k = NULL;
-    }
-    closure = PyFunction_GET_CLOSURE(func);
-#if PY_MAJOR_VERSION >= 3
-    kwdefs = PyFunction_GET_KW_DEFAULTS(func);
-#endif
-    if (argdefs != NULL) {
-        d = &PyTuple_GET_ITEM(argdefs, 0);
-        nd = Py_SIZE(argdefs);
-    }
-    else {
-        d = NULL;
-        nd = 0;
-    }
-#if PY_MAJOR_VERSION >= 3
-    result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
-                               args, (int)nargs,
-                               k, (int)nk,
-                               d, (int)nd, kwdefs, closure);
-#else
-    result = PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
-                               args, (int)nargs,
-                               k, (int)nk,
-                               d, (int)nd, closure);
-#endif
-    Py_XDECREF(kwtuple);
-done:
-    Py_LeaveRecursiveCall();
-    return result;
-}
-#endif
-
-/* PyObjectCallMethO */
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg) {
-    PyObject *self, *result;
-    PyCFunction cfunc;
-    cfunc = PyCFunction_GET_FUNCTION(func);
-    self = PyCFunction_GET_SELF(func);
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    result = cfunc(self, arg);
-    Py_LeaveRecursiveCall();
-    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
-        PyErr_SetString(
-            PyExc_SystemError,
-            "NULL result without error in PyObject_Call");
-    }
-    return result;
-}
-#endif
-
-/* PyObjectFastCall */
-static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
-    PyObject *argstuple;
-    PyObject *result;
-    size_t i;
-    argstuple = PyTuple_New((Py_ssize_t)nargs);
-    if (unlikely(!argstuple)) return NULL;
-    for (i = 0; i < nargs; i++) {
-        Py_INCREF(args[i]);
-        PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]);
-    }
-    result = __Pyx_PyObject_Call(func, argstuple, kwargs);
-    Py_DECREF(argstuple);
-    return result;
-}
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t _nargs, PyObject *kwargs) {
-    Py_ssize_t nargs = __Pyx_PyVectorcall_NARGS(_nargs);
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (nargs == 0 && kwargs == NULL) {
-#if defined(__Pyx_CyFunction_USED) && defined(NDEBUG)
-        if (__Pyx_IsCyOrPyCFunction(func))
-#else
-        if (PyCFunction_Check(func))
-#endif
-        {
-            if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
-                return __Pyx_PyObject_CallMethO(func, NULL);
-            }
-        }
-    }
-    else if (nargs == 1 && kwargs == NULL) {
-        if (PyCFunction_Check(func))
-        {
-            if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
-                return __Pyx_PyObject_CallMethO(func, args[0]);
-            }
-        }
-    }
-#endif
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
-        if (kwargs) {
-            return _PyCFunction_FastCallDict(func, args, nargs, kwargs);
-        } else {
-            return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
-        }
-    }
-    #if PY_VERSION_HEX >= 0x030700A1
-    if (!kwargs && __Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
-    }
-    #endif
-    #endif
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs);
-    }
-    #endif
-    #endif
-    #if CYTHON_VECTORCALL
-    vectorcallfunc f = _PyVectorcall_Function(func);
-    if (f) {
-        return f(func, args, (size_t)nargs, kwargs);
-    }
-    #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
-    if (__Pyx_CyFunction_CheckExact(func)) {
-        __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-        if (f) return f(func, args, (size_t)nargs, kwargs);
-    }
-    #endif
-    if (nargs == 0) {
-        return __Pyx_PyObject_Call(func, __pyx_empty_tuple, kwargs);
-    }
-    return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
-}
-
-/* SliceObject */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
-        Py_ssize_t cstart, Py_ssize_t cstop,
-        PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, int wraparound) {
-    __Pyx_TypeName obj_type_name;
-#if CYTHON_USE_TYPE_SLOTS
-    PyMappingMethods* mp;
-#if PY_MAJOR_VERSION < 3
-    PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
-    if (likely(ms && ms->sq_slice)) {
-        if (!has_cstart) {
-            if (_py_start && (*_py_start != Py_None)) {
-                cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
-                if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstart = 0;
-        }
-        if (!has_cstop) {
-            if (_py_stop && (*_py_stop != Py_None)) {
-                cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
-                if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstop = PY_SSIZE_T_MAX;
-        }
-        if (wraparound && unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
-            Py_ssize_t l = ms->sq_length(obj);
-            if (likely(l >= 0)) {
-                if (cstop < 0) {
-                    cstop += l;
-                    if (cstop < 0) cstop = 0;
-                }
-                if (cstart < 0) {
-                    cstart += l;
-                    if (cstart < 0) cstart = 0;
-                }
-            } else {
-                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                    goto bad;
-                PyErr_Clear();
-            }
-        }
-        return ms->sq_slice(obj, cstart, cstop);
-    }
-#else
-    CYTHON_UNUSED_VAR(wraparound);
-#endif
-    mp = Py_TYPE(obj)->tp_as_mapping;
-    if (likely(mp && mp->mp_subscript))
-#else
-    CYTHON_UNUSED_VAR(wraparound);
-#endif
-    {
-        PyObject* result;
-        PyObject *py_slice, *py_start, *py_stop;
-        if (_py_slice) {
-            py_slice = *_py_slice;
-        } else {
-            PyObject* owned_start = NULL;
-            PyObject* owned_stop = NULL;
-            if (_py_start) {
-                py_start = *_py_start;
-            } else {
-                if (has_cstart) {
-                    owned_start = py_start = PyInt_FromSsize_t(cstart);
-                    if (unlikely(!py_start)) goto bad;
-                } else
-                    py_start = Py_None;
-            }
-            if (_py_stop) {
-                py_stop = *_py_stop;
-            } else {
-                if (has_cstop) {
-                    owned_stop = py_stop = PyInt_FromSsize_t(cstop);
-                    if (unlikely(!py_stop)) {
-                        Py_XDECREF(owned_start);
-                        goto bad;
-                    }
-                } else
-                    py_stop = Py_None;
-            }
-            py_slice = PySlice_New(py_start, py_stop, Py_None);
-            Py_XDECREF(owned_start);
-            Py_XDECREF(owned_stop);
-            if (unlikely(!py_slice)) goto bad;
-        }
-#if CYTHON_USE_TYPE_SLOTS
-        result = mp->mp_subscript(obj, py_slice);
-#else
-        result = PyObject_GetItem(obj, py_slice);
-#endif
-        if (!_py_slice) {
-            Py_DECREF(py_slice);
-        }
-        return result;
-    }
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-        "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-bad:
-    return NULL;
-}
-
-/* RaiseUnexpectedTypeError */
-static int
-__Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
-{
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
-                 expected, obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return 0;
+/* ErrOccurredWithGIL */
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
+  int err;
+  #ifdef WITH_THREAD
+  PyGILState_STATE _save = PyGILState_Ensure();
+  #endif
+  err = !!PyErr_Occurred();
+  #ifdef WITH_THREAD
+  PyGILState_Release(_save);
+  #endif
+  return err;
 }
 
 /* PyDictVersioning */
@@ -14840,6 +11959,328 @@ bad:
         }\
         return (target_type) value;\
     }
+
+/* RaiseUnexpectedTypeError */
+static int
+__Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
+{
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
+                 expected, obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    return 0;
+}
+
+/* CIntToPy */
+static CYTHON_INLINE PyObject* __Pyx_PyInt_From_unsigned_int(unsigned int value) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const unsigned int neg_one = (unsigned int) -1, const_zero = (unsigned int) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+    if (is_unsigned) {
+        if (sizeof(unsigned int) < sizeof(long)) {
+            return PyInt_FromLong((long) value);
+        } else if (sizeof(unsigned int) <= sizeof(unsigned long)) {
+            return PyLong_FromUnsignedLong((unsigned long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(unsigned int) <= sizeof(unsigned PY_LONG_LONG)) {
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+#endif
+        }
+    } else {
+        if (sizeof(unsigned int) <= sizeof(long)) {
+            return PyInt_FromLong((long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(unsigned int) <= sizeof(PY_LONG_LONG)) {
+            return PyLong_FromLongLong((PY_LONG_LONG) value);
+#endif
+        }
+    }
+    {
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&value;
+        return _PyLong_FromByteArray(bytes, sizeof(unsigned int),
+                                     little, !is_unsigned);
+    }
+}
+
+/* CIntFromPy */
+static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *x) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const unsigned int neg_one = (unsigned int) -1, const_zero = (unsigned int) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+#if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_Check(x))) {
+        if ((sizeof(unsigned int) < sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT(unsigned int, long, PyInt_AS_LONG(x))
+        } else {
+            long val = PyInt_AS_LONG(x);
+            if (is_unsigned && unlikely(val < 0)) {
+                goto raise_neg_overflow;
+            }
+            return (unsigned int) val;
+        }
+    } else
+#endif
+    if (likely(PyLong_Check(x))) {
+        if (is_unsigned) {
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+                goto raise_neg_overflow;
+            } else if (__Pyx_PyLong_IsCompact(x)) {
+                __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+            } else {
+                const digit* digits = __Pyx_PyLong_Digits(x);
+                assert(__Pyx_PyLong_DigitCount(x) > 1);
+                switch (__Pyx_PyLong_DigitCount(x)) {
+                    case 2:
+                        if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) >= 2 * PyLong_SHIFT)) {
+                                return (unsigned int) (((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            }
+                        }
+                        break;
+                    case 3:
+                        if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) >= 3 * PyLong_SHIFT)) {
+                                return (unsigned int) (((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            }
+                        }
+                        break;
+                    case 4:
+                        if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) >= 4 * PyLong_SHIFT)) {
+                                return (unsigned int) (((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
+                            }
+                        }
+                        break;
+                }
+            }
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
+            if (unlikely(Py_SIZE(x) < 0)) {
+                goto raise_neg_overflow;
+            }
+#else
+            {
+                int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+                if (unlikely(result < 0))
+                    return (unsigned int) -1;
+                if (unlikely(result == 1))
+                    goto raise_neg_overflow;
+            }
+#endif
+            if ((sizeof(unsigned int) <= sizeof(unsigned long))) {
+                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned long, PyLong_AsUnsignedLong(x))
+#ifdef HAVE_LONG_LONG
+            } else if ((sizeof(unsigned int) <= sizeof(unsigned PY_LONG_LONG))) {
+                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+#endif
+            }
+        } else {
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (__Pyx_PyLong_IsCompact(x)) {
+                __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+            } else {
+                const digit* digits = __Pyx_PyLong_Digits(x);
+                assert(__Pyx_PyLong_DigitCount(x) > 1);
+                switch (__Pyx_PyLong_SignedDigitCount(x)) {
+                    case -2:
+                        if ((8 * sizeof(unsigned int) - 1 > 1 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                                return (unsigned int) (((unsigned int)-1)*(((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                    case 2:
+                        if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                                return (unsigned int) ((((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                    case -3:
+                        if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                                return (unsigned int) (((unsigned int)-1)*(((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                    case 3:
+                        if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                                return (unsigned int) ((((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                    case -4:
+                        if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
+                                return (unsigned int) (((unsigned int)-1)*(((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                    case 4:
+                        if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
+                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
+                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
+                            } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
+                                return (unsigned int) ((((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
+                            }
+                        }
+                        break;
+                }
+            }
+#endif
+            if ((sizeof(unsigned int) <= sizeof(long))) {
+                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, long, PyLong_AsLong(x))
+#ifdef HAVE_LONG_LONG
+            } else if ((sizeof(unsigned int) <= sizeof(PY_LONG_LONG))) {
+                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, PY_LONG_LONG, PyLong_AsLongLong(x))
+#endif
+            }
+        }
+        {
+            unsigned int val;
+            PyObject *v = __Pyx_PyNumber_IntOrLong(x);
+#if PY_MAJOR_VERSION < 3
+            if (likely(v) && !PyLong_Check(v)) {
+                PyObject *tmp = v;
+                v = PyNumber_Long(tmp);
+                Py_DECREF(tmp);
+            }
+#endif
+            if (likely(v)) {
+                int ret = -1;
+#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
+                int one = 1; int is_little = (int)*(unsigned char *)&one;
+                unsigned char *bytes = (unsigned char *)&val;
+                ret = _PyLong_AsByteArray((PyLongObject *)v,
+                                           bytes, sizeof(val),
+                                           is_little, !is_unsigned);
+#else
+                PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
+                int bits, remaining_bits, is_negative = 0;
+                long idigit;
+                int chunk_size = (sizeof(long) < 8) ? 30 : 62;
+                if (unlikely(!PyLong_CheckExact(v))) {
+                    PyObject *tmp = v;
+                    v = PyNumber_Long(v);
+                    assert(PyLong_CheckExact(v));
+                    Py_DECREF(tmp);
+                    if (unlikely(!v)) return (unsigned int) -1;
+                }
+#if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
+                if (Py_SIZE(x) == 0)
+                    return (unsigned int) 0;
+                is_negative = Py_SIZE(x) < 0;
+#else
+                {
+                    int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+                    if (unlikely(result < 0))
+                        return (unsigned int) -1;
+                    is_negative = result == 1;
+                }
+#endif
+                if (is_unsigned && unlikely(is_negative)) {
+                    goto raise_neg_overflow;
+                } else if (is_negative) {
+                    stepval = PyNumber_Invert(v);
+                    if (unlikely(!stepval))
+                        return (unsigned int) -1;
+                } else {
+                    stepval = __Pyx_NewRef(v);
+                }
+                val = (unsigned int) 0;
+                mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
+                shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
+                for (bits = 0; bits < (int) sizeof(unsigned int) * 8 - chunk_size; bits += chunk_size) {
+                    PyObject *tmp, *digit;
+                    digit = PyNumber_And(stepval, mask);
+                    if (unlikely(!digit)) goto done;
+                    idigit = PyLong_AsLong(digit);
+                    Py_DECREF(digit);
+                    if (unlikely(idigit < 0)) goto done;
+                    tmp = PyNumber_Rshift(stepval, shift);
+                    if (unlikely(!tmp)) goto done;
+                    Py_DECREF(stepval); stepval = tmp;
+                    val |= ((unsigned int) idigit) << bits;
+                    #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
+                    if (Py_SIZE(stepval) == 0)
+                        goto unpacking_done;
+                    #endif
+                }
+                idigit = PyLong_AsLong(stepval);
+                if (unlikely(idigit < 0)) goto done;
+                remaining_bits = ((int) sizeof(unsigned int) * 8) - bits - (is_unsigned ? 0 : 1);
+                if (unlikely(idigit >= (1L << remaining_bits)))
+                    goto raise_overflow;
+                val |= ((unsigned int) idigit) << bits;
+            #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
+            unpacking_done:
+            #endif
+                if (!is_unsigned) {
+                    if (unlikely(val & (((unsigned int) 1) << (sizeof(unsigned int) * 8 - 1))))
+                        goto raise_overflow;
+                    if (is_negative)
+                        val = ~val;
+                }
+                ret = 0;
+            done:
+                Py_XDECREF(shift);
+                Py_XDECREF(mask);
+                Py_XDECREF(stepval);
+#endif
+                Py_DECREF(v);
+                if (likely(!ret))
+                    return val;
+            }
+            return (unsigned int) -1;
+        }
+    } else {
+        unsigned int val;
+        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
+        if (!tmp) return (unsigned int) -1;
+        val = __Pyx_PyInt_As_unsigned_int(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+raise_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "value too large to convert to unsigned int");
+    return (unsigned int) -1;
+raise_neg_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "can't convert negative value to unsigned int");
+    return (unsigned int) -1;
+}
 
 /* CIntFromPy */
 static CYTHON_INLINE exponent_t __Pyx_PyInt_As_exponent_t(PyObject *x) {
@@ -15933,279 +13374,6 @@ raise_neg_overflow:
     return (iterable_t) -1;
 }
 
-/* CIntFromPy */
-static CYTHON_INLINE unsigned int __Pyx_PyInt_As_unsigned_int(PyObject *x) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const unsigned int neg_one = (unsigned int) -1, const_zero = (unsigned int) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(x))) {
-        if ((sizeof(unsigned int) < sizeof(long))) {
-            __PYX_VERIFY_RETURN_INT(unsigned int, long, PyInt_AS_LONG(x))
-        } else {
-            long val = PyInt_AS_LONG(x);
-            if (is_unsigned && unlikely(val < 0)) {
-                goto raise_neg_overflow;
-            }
-            return (unsigned int) val;
-        }
-    } else
-#endif
-    if (likely(PyLong_Check(x))) {
-        if (is_unsigned) {
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-                goto raise_neg_overflow;
-            } else if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
-            } else {
-                const digit* digits = __Pyx_PyLong_Digits(x);
-                assert(__Pyx_PyLong_DigitCount(x) > 1);
-                switch (__Pyx_PyLong_DigitCount(x)) {
-                    case 2:
-                        if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) >= 2 * PyLong_SHIFT)) {
-                                return (unsigned int) (((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
-                            }
-                        }
-                        break;
-                    case 3:
-                        if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) >= 3 * PyLong_SHIFT)) {
-                                return (unsigned int) (((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
-                            }
-                        }
-                        break;
-                    case 4:
-                        if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) >= 4 * PyLong_SHIFT)) {
-                                return (unsigned int) (((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0]));
-                            }
-                        }
-                        break;
-                }
-            }
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
-            if (unlikely(Py_SIZE(x) < 0)) {
-                goto raise_neg_overflow;
-            }
-#else
-            {
-                int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-                if (unlikely(result < 0))
-                    return (unsigned int) -1;
-                if (unlikely(result == 1))
-                    goto raise_neg_overflow;
-            }
-#endif
-            if ((sizeof(unsigned int) <= sizeof(unsigned long))) {
-                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
-            } else if ((sizeof(unsigned int) <= sizeof(unsigned PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
-            }
-        } else {
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT(unsigned int, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
-            } else {
-                const digit* digits = __Pyx_PyLong_Digits(x);
-                assert(__Pyx_PyLong_DigitCount(x) > 1);
-                switch (__Pyx_PyLong_SignedDigitCount(x)) {
-                    case -2:
-                        if ((8 * sizeof(unsigned int) - 1 > 1 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
-                                return (unsigned int) (((unsigned int)-1)*(((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                    case 2:
-                        if ((8 * sizeof(unsigned int) > 1 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
-                                return (unsigned int) ((((((unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                    case -3:
-                        if ((8 * sizeof(unsigned int) - 1 > 2 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
-                                return (unsigned int) (((unsigned int)-1)*(((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                    case 3:
-                        if ((8 * sizeof(unsigned int) > 2 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 3 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
-                                return (unsigned int) ((((((((unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                    case -4:
-                        if ((8 * sizeof(unsigned int) - 1 > 3 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, long, -(long) (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
-                                return (unsigned int) (((unsigned int)-1)*(((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                    case 4:
-                        if ((8 * sizeof(unsigned int) > 3 * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > 4 * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT(unsigned int, unsigned long, (((((((((unsigned long)digits[3]) << PyLong_SHIFT) | (unsigned long)digits[2]) << PyLong_SHIFT) | (unsigned long)digits[1]) << PyLong_SHIFT) | (unsigned long)digits[0])))
-                            } else if ((8 * sizeof(unsigned int) - 1 > 4 * PyLong_SHIFT)) {
-                                return (unsigned int) ((((((((((unsigned int)digits[3]) << PyLong_SHIFT) | (unsigned int)digits[2]) << PyLong_SHIFT) | (unsigned int)digits[1]) << PyLong_SHIFT) | (unsigned int)digits[0])));
-                            }
-                        }
-                        break;
-                }
-            }
-#endif
-            if ((sizeof(unsigned int) <= sizeof(long))) {
-                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
-            } else if ((sizeof(unsigned int) <= sizeof(PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC(unsigned int, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
-            }
-        }
-        {
-            unsigned int val;
-            PyObject *v = __Pyx_PyNumber_IntOrLong(x);
-#if PY_MAJOR_VERSION < 3
-            if (likely(v) && !PyLong_Check(v)) {
-                PyObject *tmp = v;
-                v = PyNumber_Long(tmp);
-                Py_DECREF(tmp);
-            }
-#endif
-            if (likely(v)) {
-                int ret = -1;
-#if !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
-                int one = 1; int is_little = (int)*(unsigned char *)&one;
-                unsigned char *bytes = (unsigned char *)&val;
-                ret = _PyLong_AsByteArray((PyLongObject *)v,
-                                           bytes, sizeof(val),
-                                           is_little, !is_unsigned);
-#else
-                PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
-                int bits, remaining_bits, is_negative = 0;
-                long idigit;
-                int chunk_size = (sizeof(long) < 8) ? 30 : 62;
-                if (unlikely(!PyLong_CheckExact(v))) {
-                    PyObject *tmp = v;
-                    v = PyNumber_Long(v);
-                    assert(PyLong_CheckExact(v));
-                    Py_DECREF(tmp);
-                    if (unlikely(!v)) return (unsigned int) -1;
-                }
-#if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-                if (Py_SIZE(x) == 0)
-                    return (unsigned int) 0;
-                is_negative = Py_SIZE(x) < 0;
-#else
-                {
-                    int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-                    if (unlikely(result < 0))
-                        return (unsigned int) -1;
-                    is_negative = result == 1;
-                }
-#endif
-                if (is_unsigned && unlikely(is_negative)) {
-                    goto raise_neg_overflow;
-                } else if (is_negative) {
-                    stepval = PyNumber_Invert(v);
-                    if (unlikely(!stepval))
-                        return (unsigned int) -1;
-                } else {
-                    stepval = __Pyx_NewRef(v);
-                }
-                val = (unsigned int) 0;
-                mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
-                shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-                for (bits = 0; bits < (int) sizeof(unsigned int) * 8 - chunk_size; bits += chunk_size) {
-                    PyObject *tmp, *digit;
-                    digit = PyNumber_And(stepval, mask);
-                    if (unlikely(!digit)) goto done;
-                    idigit = PyLong_AsLong(digit);
-                    Py_DECREF(digit);
-                    if (unlikely(idigit < 0)) goto done;
-                    tmp = PyNumber_Rshift(stepval, shift);
-                    if (unlikely(!tmp)) goto done;
-                    Py_DECREF(stepval); stepval = tmp;
-                    val |= ((unsigned int) idigit) << bits;
-                    #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-                    if (Py_SIZE(stepval) == 0)
-                        goto unpacking_done;
-                    #endif
-                }
-                idigit = PyLong_AsLong(stepval);
-                if (unlikely(idigit < 0)) goto done;
-                remaining_bits = ((int) sizeof(unsigned int) * 8) - bits - (is_unsigned ? 0 : 1);
-                if (unlikely(idigit >= (1L << remaining_bits)))
-                    goto raise_overflow;
-                val |= ((unsigned int) idigit) << bits;
-            #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-            unpacking_done:
-            #endif
-                if (!is_unsigned) {
-                    if (unlikely(val & (((unsigned int) 1) << (sizeof(unsigned int) * 8 - 1))))
-                        goto raise_overflow;
-                    if (is_negative)
-                        val = ~val;
-                }
-                ret = 0;
-            done:
-                Py_XDECREF(shift);
-                Py_XDECREF(mask);
-                Py_XDECREF(stepval);
-#endif
-                Py_DECREF(v);
-                if (likely(!ret))
-                    return val;
-            }
-            return (unsigned int) -1;
-        }
-    } else {
-        unsigned int val;
-        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return (unsigned int) -1;
-        val = __Pyx_PyInt_As_unsigned_int(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-raise_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "value too large to convert to unsigned int");
-    return (unsigned int) -1;
-raise_neg_overflow:
-    PyErr_SetString(PyExc_OverflowError,
-        "can't convert negative value to unsigned int");
-    return (unsigned int) -1;
-}
-
 /* CIntToPy */
 static CYTHON_INLINE PyObject* __Pyx_PyInt_From_iterable_t(iterable_t value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -16320,44 +13488,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_From_exponent_t(exponent_t value) {
     }
 }
 
-/* CIntToPy */
-static CYTHON_INLINE PyObject* __Pyx_PyInt_From_unsigned_char(unsigned char value) {
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wconversion"
-#endif
-    const unsigned char neg_one = (unsigned char) -1, const_zero = (unsigned char) 0;
-#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
-#pragma GCC diagnostic pop
-#endif
-    const int is_unsigned = neg_one > const_zero;
-    if (is_unsigned) {
-        if (sizeof(unsigned char) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
-        } else if (sizeof(unsigned char) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(unsigned char) <= sizeof(unsigned PY_LONG_LONG)) {
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
-#endif
-        }
-    } else {
-        if (sizeof(unsigned char) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
-        } else if (sizeof(unsigned char) <= sizeof(PY_LONG_LONG)) {
-            return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
-        }
-    }
-    {
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&value;
-        return _PyLong_FromByteArray(bytes, sizeof(unsigned char),
-                                     little, !is_unsigned);
-    }
-}
-
 /* FormatTypeName */
 #if CYTHON_COMPILING_IN_LIMITED_API
 static __Pyx_TypeName
@@ -16367,7 +13497,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
                                                __pyx_n_s_name);
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
-        Py_XSETREF(name, __Pyx_NewRef(__pyx_n_s__6));
+        Py_XSETREF(name, __Pyx_NewRef(__pyx_n_s__8));
     }
     return name;
 }
@@ -16716,6 +13846,44 @@ bad:
     Py_XDECREF(d);
     return -1;
 }
+
+/* FunctionImport */
+#ifndef __PYX_HAVE_RT_ImportFunction_3_0_0
+#define __PYX_HAVE_RT_ImportFunction_3_0_0
+static int __Pyx_ImportFunction_3_0_0(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+    PyObject *d = 0;
+    PyObject *cobj = 0;
+    union {
+        void (*fp)(void);
+        void *p;
+    } tmp;
+    d = PyObject_GetAttrString(module, (char *)"__pyx_capi__");
+    if (!d)
+        goto bad;
+    cobj = PyDict_GetItemString(d, funcname);
+    if (!cobj) {
+        PyErr_Format(PyExc_ImportError,
+            "%.200s does not export expected C function %.200s",
+                PyModule_GetName(module), funcname);
+        goto bad;
+    }
+    if (!PyCapsule_IsValid(cobj, sig)) {
+        PyErr_Format(PyExc_TypeError,
+            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
+             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
+        goto bad;
+    }
+    tmp.p = PyCapsule_GetPointer(cobj, sig);
+    *f = tmp.fp;
+    if (!(*f))
+        goto bad;
+    Py_DECREF(d);
+    return 0;
+bad:
+    Py_XDECREF(d);
+    return -1;
+}
+#endif
 
 /* InitStrings */
 #if PY_MAJOR_VERSION >= 3

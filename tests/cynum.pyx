@@ -3,7 +3,7 @@
 from libc.math cimport fabs, floor, ceil
 from libc.stdlib cimport malloc, free, realloc, calloc, abs as cabs
 from libc.string cimport memcpy, strcpy as _strcpy, strlen as _strlen, strrchr as _strrchr, strtok as _strtok, strcat as _strcat, strpbrk as _strpbrk, memset as _memset
-from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t, _normalize_digits, _decimal, CAPITAL_E, ZERO, NEGATIVE, PERIOD, TERMINATOR, _cydecimal_ptr, _is_negative, _empty_decimal, _abs_dec, _printf_dec, norm_decimal_from_string, new_decimal_from_string, norm_decimal_from_int, norm_decimal_from_double, new_decimal_from_int, new_decimal_from_double, new_decimal, empty_decimal
+from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t, _normalize_digits, _decimal, CAPITAL_E, ZERO, NEGATIVE, PERIOD, TERMINATOR, _cydecimal_ptr, _is_negative, _empty_decimal, _abs_dec, _printf_dec, norm_decimal_from_string, new_decimal_from_string, norm_decimal_from_int, norm_decimal_from_double, new_decimal_from_int, new_decimal_from_double, new_decimal, empty_decimal, _negate
 from cython.operator cimport preincrement, postincrement, dereference, predecrement, postdecrement
 
 cdef extern from * nogil:
@@ -23,20 +23,20 @@ static struct _cydecimal _square_decimal(const _cydecimal_ptr first) {
     for (i = N_DIGITS_I; i > -1; i--) {
         overflow = 0;
         x = first->digits[i];
-        if (first->negative) {
-            if ((x > 9)) {
-                x = -x;
-            }
-        }
+        //if (first->negative) {
+        //    if ((x > 9)) {
+        //        x = -x;
+        //    }
+        //}
 
         if (x != 0) {
             for (j = N_DIGITS_I; j > -1; j--) {
                 y = first->digits[j];
-                if (first->negative) {
-                    if ((y > 9)) {
-                        y = -y;
-                    }
-                }
+                //if (first->negative) {
+                //    if ((y > 9)) {
+                //        y = -y;
+                //    }
+                //}
 
                 if (y == 0 && overflow == 0) {
                     continue;
@@ -52,31 +52,27 @@ static struct _cydecimal _square_decimal(const _cydecimal_ptr first) {
                 }
             }
 
-            ++place_val;  // This line adds the carry-over to the next digit
+            
         }
+        ++place_val;  // This line adds the carry-over to the next digit
     }
 
-    if (negate) {
-        for (i = 0; i < MAX_LENGTH; i++) {
-            if ((result.digits[i] != 0)) { // may have to change if working with huge values :|
-                result.digits[i] = -result.digits[i];
-                break;
-            }
-        }
-    }
 
-    _normalize_digits(&result, false);
     return result;
 }
 
-static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) {
+static struct _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, int number) {
     exponent_t i, j, place_val=0;
-    const bool negate = first->negative ^ second->negative;
-    unsigned char overflow, x, y;
+    const bool negate = (first->negative ^ second->negative) ^ (number < 0);
+    number = abs(number);
+    int overflow, x, y;
+    
     struct _cydecimal result = _empty_decimal();
     
     _normalize_digits(first, true);
     _normalize_digits(second, true);
+    _normalize_digits(first, false); // this is necessary for some reason???
+    _normalize_digits(second, false);
 
     result.exp = first->exp + second->exp;
     result.negative = negate;
@@ -84,26 +80,26 @@ static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydec
     for (i = N_DIGITS_I; i > -1; i--) {
         overflow = 0;
         x = first->digits[i];
-        if (first->negative) {
-            if ((x > 9)) {
-                x = -x;
-            }
-        }
+        //if (first->negative) {
+        //    if ((x > 9)) {
+        //        x = -x;
+        //    }
+        //}
 
         if (x != 0) {
             for (j = N_DIGITS_I; j > -1; j--) {
                 y = second->digits[j];
-                if (first->negative) {
-                    if ((y > 9)) {
-                        y = -y;
-                    }
-                }
+                //if (first->negative) {
+                //    if ((y > 9)) {
+                //        y = -y;
+                //    }
+                //}
 
                 if (y == 0 && overflow == 0) {
                     continue;
                 }
 
-                overflow = (x * y) + overflow + result.digits[j - place_val];
+                overflow = (x * y * number) + overflow + result.digits[j - place_val];
                 if ((overflow > 9)) {
                     result.digits[j - place_val] = overflow % 10;
                     overflow = overflow / 10;  // Integer division for carry-over
@@ -113,24 +109,76 @@ static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydec
                 }
             }
 
-            ++place_val;  // This line adds the carry-over to the next digit
+            
         }
+        ++place_val;  // This line adds the carry-over to the next digit
     }
 
-    if (negate) {
-        for (i = 0; i < MAX_LENGTH; i++) {
-            if ((result.digits[i] != 0)) { // may have to change if working with huge values :|
-                result.digits[i] = -result.digits[i];
-                break;
-            }
-        }
-    }
-
-    _normalize_digits(&result, false);
     return result;
 }
 
-static struct _cydecimal _decimal_from_double(const double first) {
+static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) {
+    exponent_t i, j, place_val=0;
+    const bool negate = first->negative ^ second->negative;
+    char overflow, x, y, temp;
+    
+    struct _cydecimal result = _empty_decimal();
+
+    // Initialize result digits to zero
+    //memset(result.digits, 0, sizeof(result.digits));
+    
+    _normalize_digits(first, true);
+    _normalize_digits(second, true);
+    _normalize_digits(first, false); // this is necessary for some reason???
+    _normalize_digits(second, false);
+
+    if (second->exp < first->exp){ // we want to minimize the exp, so that it stays an integer
+        _left_shift_digits(first, abs(first->exp-second->exp));
+    }
+    else if (second->exp > first->exp){ // we want to minimize the exp, so that it stays an integer
+        _left_shift_digits(second, abs(second->exp-first->exp));
+    }
+    result.exp = first->exp + second->exp;
+    result.negative = negate;
+    //printf("Printing... %s %s \\n", _dec_2_str(first), _dec_2_str(second));
+    for (i = N_DIGITS_I; i > -1; i--) {
+        overflow = 0;
+        x = first->digits[i];
+
+        if (x != 0) {
+            for (j = N_DIGITS_I; j > -1; j--) {
+                y = second->digits[j];
+
+                if (y == 0 && overflow == 0) {
+                    continue;
+                }
+
+                overflow = (x * y) + overflow + result.digits[j-place_val];
+                temp = overflow;
+                if ((overflow > 9)) {
+                    result.digits[j - place_val] = overflow % 10;
+                    overflow = overflow / 10;  // Integer division for carry-over
+                    //result.digits[j - place_val-1] = overflow //trying this
+                } else {
+                    result.digits[j - place_val] = overflow;
+                    overflow = 0;
+                }
+                //printf("overflow: %d temp: %d, res: %d, digits: %s, nums: %d * %d\\n", overflow, temp, result.digits[j - place_val], _dec_2_str(&result), x, y);
+            }
+
+           
+        }
+        ++place_val;  // This line adds the carry-over to the next digit
+    }
+
+    return result;
+}
+
+
+static struct _cydecimal _decimal_from_double(double first) {
+    struct _cydecimal res;
+    res.negative = first < 0;
+    first = fabs(first);
     double large = floor(first), small, temp;
     small = first - large;  // decimal portion
     temp = large;
@@ -141,8 +189,8 @@ static struct _cydecimal _decimal_from_double(const double first) {
         large_lim = N_DIGITS;
     }
 
-    struct _cydecimal res;
-    res.negative = first < 0;
+    
+    
     res.exp = 0;
     memset(&res.digits, 0, MAX_LENGTH);
 
@@ -151,10 +199,9 @@ static struct _cydecimal _decimal_from_double(const double first) {
         temp = floor(temp * 0.1);
     }
 
-    temp = small;
+    temp = fabs(small);
     i = N_PRECISION;
-
-    while (fabs(temp) != ceil(fabs(temp))) {
+    while ((temp) != ceil((temp))) {
         temp = (temp * 10);
         res.digits[i] = (char)fmod(floor(temp), 10);
         i++;
@@ -168,29 +215,31 @@ static struct _cydecimal _decimal_from_double(const double first) {
 }
 
 
-static struct _cydecimal _norm_decimal_from_double(const double first) {
-    double temp = fabs(first);
+static struct _cydecimal _norm_decimal_from_double(double first) {
+    struct _cydecimal res;
+    res.negative = first < 0;
+    first = fabs(first);
     iterable_t i;
     unsigned char large_lim;
-    struct _cydecimal res;
+    
     res.exp = 0;
-    res.negative = first < 0;
+    
     memset(res.digits, 0, MAX_LENGTH);
 
-    while (ceil(temp) != temp) {
+    while (ceil(first) != first) {
         res.exp--;
-        temp = temp * 10;
+        first = first * 10;
     }
 
-    large_lim = (unsigned char)ceil(log10(temp) + 1);
+    large_lim = (unsigned char)ceil(log10(first) + 1);
 
     if (large_lim > N_DIGITS) {
         large_lim = N_DIGITS_I;
     }
 
     for (i = 0; i < large_lim; i++) {
-        res.digits[N_DIGITS_I - i] = (char)fmod(temp, 10);
-        temp = floor(temp*0.1);
+        res.digits[N_DIGITS_I - i] = (char)fmod(first, 10);
+        first = floor(first*0.1);
     }
 
     return res;
@@ -248,12 +297,19 @@ static struct _cydecimal _norm_decimal_from_string(const char* first) {
 
     memcpy(res.digits, (char*)calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH * sizeof(char));
     char x;
+    res.negative=false;
+    if (large_copy[0] == '-'){
+        res.negative=true;
+        large_copy++;
+        large_len--;
+    }
     for (i = 0; i < large_len; i++) {
         x = large_copy[large_len - 1 - i];
-        if (x=='-'){ // just check for negative :)
-            res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
-            continue;
-        }
+        //if (x=='-'){ // just check for negative :)
+            //res.negative=true;
+            //res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
+            //continue;
+        //}
         res.digits[N_DIGITS_I - i] = large_copy[large_len - 1 - i] - ZERO;
     }
 
@@ -275,7 +331,7 @@ static struct _cydecimal _decimal_from_string(const char* first) {  // TODO: FIX
     char* small = (char*)malloc(sizeof(char)*length);
     char* small_copy = small;
     small = strrchr(first, PERIOD);
-    small = small + 1;
+    small++;
 
 
     char* large = (char*)malloc(sizeof(char)*length);
@@ -289,14 +345,18 @@ static struct _cydecimal _decimal_from_string(const char* first) {  // TODO: FIX
     unsigned char large_len = strlen(large), small_len = strlen(small);
 
     memcpy(&res.digits, (char*)calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH * sizeof(char));
-    char x;
+    res.negative=false;
+    if (large[0]=='-'){
+        large++;
+        res.negative=true;
+        large_len--;
+    }
     for (i = 0; i < large_len; i++) {
-        x = large[large_len - 1 - i];
-        if (x=='-'){
-            res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
-            continue;
-        };
-        res.digits[N_DIGITS_I - i] = x - ZERO;
+        //if (x=='-'){
+        //    res.digits[N_DIGITS_I - i+1] = -res.digits[N_DIGITS_I - i+1];
+        //    continue;
+        //};
+        res.digits[N_DIGITS_I - i] = large[large_len - 1 - i] - ZERO;
     }
 
     free(large_copy);
@@ -309,43 +369,39 @@ static struct _cydecimal _decimal_from_string(const char* first) {  // TODO: FIX
 }
 
 static struct _cydecimal _decimal_from_int(int first) {
-    iterable_t i;
-    unsigned int temp = abs(first);
-    iterable_t large_lim = (iterable_t)floor(log10(temp) + 1);
     struct _cydecimal res;
     res.negative = first < 0;
     res.exp = 0;
+    iterable_t i;
+    first = abs(first);
+    iterable_t large_lim = (iterable_t)floor(log10(first) + 1);
+
 
     memcpy(&res.digits, calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH);
     
     // test: 8204.172
     for (i=0;i<large_lim;i++){
-        res.digits[N_DIGITS_I - i] = temp % 10;
-        temp = temp/10;
-    };
-    if (res.negative ){
-        res.digits[N_DIGITS-i] = -(res.digits[N_DIGITS-i]);
+        res.digits[N_DIGITS_I - i] = first % 10;
+        first = first/10;
     };
     return res;
 }
 
 static struct _cydecimal _norm_decimal_from_int(int first) {
     iterable_t i;
-    unsigned int temp = abs(first);
-    iterable_t large_lim = (iterable_t)floor(log10(temp) + 1);
     struct _cydecimal res;
     res.negative = first < 0;
     res.exp = 0;
+    first = abs(first);
+    iterable_t large_lim = (iterable_t)floor(log10(first) + 1);
+
 
     memcpy(&res.digits, calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH);
     
     // test: 8204.172
     for (i=0;i<large_lim;i++){
-        res.digits[N_DIGITS_I - i] = temp % 10;
-        temp = temp/10;
-    };
-    if (res.negative ){
-        res.digits[N_DIGITS-i] = -(res.digits[N_DIGITS-i]);
+        res.digits[N_DIGITS_I - i] = first % 10;
+        first = first/10;
     };
     _normalize_digits(&res, false);
     return res;
@@ -354,25 +410,21 @@ static struct _cydecimal _norm_decimal_from_int(int first) {
 static struct _cydecimal _add_decimals();
 
 static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cydecimal second) {
-    iterable_t i, index = 0;
+    exponent_t i;
     char x, y, res=0;
-    bool small = 0, negate = 0;
+    bool small = false, negate = false, both=(first.negative && second.negative);
     struct _cydecimal temp;
-    if ((second.negative) && (!first.negative)){
-        second = _abs_dec(second);
-        return _add_decimals(first, second);  // more efficient
-    }
     if (first.exp > second.exp){  // bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
         _left_shift_digits(&second, first.exp-second.exp);  // bring up value
     }
     else if (second.exp > first.exp){
         _left_shift_digits(&first, second.exp-first.exp);  // bring up value
-        temp = second;
-        second = first;
-        first = temp;  // swap
-        negate = true;
+        //temp = second;
+        //second = first;
+        //first = temp;  // swap
+        //negate = true;
     }
-    else if (_less_than_digits(&first, &second)){
+    if (_less_than_digits(&first, &second) && (!both)){
         temp = second;
         second = first;
         first = temp;  // swap
@@ -381,9 +433,35 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
     else if (_eq_digits(&first, &second)){
         return _empty_decimal();
     };
-    for (i = MAX_LENGTH; i > 0; i--){
-        y = second.digits[i-1];
-        x = first.digits[i-1];
+
+    if ((second.negative) && (!first.negative)){  // second is negative, first is positive, add values instead
+        _negate(&second); // used to be abs_dec
+        first = _add_decimals(first, second);
+        if (negate){
+            _negate(&first);
+        }
+        return first;  // more efficient
+    }
+    else if (first.negative && (!second.negative)){ // first is negative, second is positive -> add and returns negated value
+        //second = _abs_dec(second);
+        _negate(&first); // used to be abs_dec
+        first = _add_decimals(first, second);
+        _negate(&first);
+        
+        return first;
+    }
+    else if(both){
+        _negate(&second);
+        first = _add_decimals(first, second);
+        _negate(&first);
+        return first;
+    }
+
+    //printf("Subtract called!\\n");
+    //printf("%s %s %d %d testing lmao\\n", _dec_2_str(&first), _dec_2_str(&second), first.negative, second.negative);
+    for (i = MAX_INDICE; i > -1; i--){
+        y = second.digits[i];
+        x = first.digits[i];
         
         if ((res == 1) || ((x!=0) || (y!=0))) {
             x = x - res;
@@ -391,7 +469,7 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
 
             small = x < y;
             if (small){
-                x++;
+                x+=10;
             };
             res = (x) - y;
 
@@ -401,21 +479,19 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
                 res = res;
             }
 
-            if (negate) {
-                if (res != 0) {
-                    index = i;
-                };
-            };
+            // if (negate) {
+            //     if (res != 0) {
+            //         index = i;
+            //     };
+            // };
 
-            first.digits[i-1] = res;  // always positive
+            first.digits[i] = res;  // always positive
 
             res = small;
         }
     }
 
-    index--;
     if (negate) {
-        first.digits[index] = -first.digits[index];
         first.negative = true;
     }
     return first;
@@ -430,8 +506,23 @@ static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecima
         _left_shift_digits(&first, second.exp - first.exp);
     }
     
-    if (first.negative ^ second.negative){
+    if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
+        if (second.negative){
+            _negate(&second);
+        }
+        else{
+            _negate(&first);
+        }
         return _subtract_decimals(first, second);
+    }
+    else if (first.negative && second.negative){  // both are negative, add their absolute and returns its negative.
+
+        first = _abs_dec(first);
+        second = _abs_dec(second);
+
+        first = (_add_decimals(first, second));
+        _negate(&first);
+        return first;
     }
 
     char overflow = 0, res = 0, z, y;
@@ -466,6 +557,7 @@ static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecima
     const _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogil
     const _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept nogil
     const _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
+    const _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const int number) noexcept nogil
     const _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
 
 cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:
@@ -727,7 +819,7 @@ cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexc
         first.digits[index] = -first.digits[index]
     return first
     
-cdef _cydecimal _mult_decimal_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
+cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
     cdef exponent_t i, j, place_val=0
     cdef bool negate = first.negative ^ second.negative  # 492.665453712
     cdef unsigned char overflow, x, y

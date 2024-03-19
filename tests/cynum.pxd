@@ -17,8 +17,8 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)12)
-#define N_PRECISION ((iterable_t)5)
+#define N_DIGITS ((iterable_t)50)
+#define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
@@ -113,35 +113,33 @@ static inline void _destruct_decimal(_cydecimal_ptr first){
 }
 
 static char* _dec_2_str(const _cydecimal_ptr dec) {
-    char* string = (char*)malloc((MAX_LENGTH + 10) * sizeof(char));
+    char* string = (char*)malloc((MAX_LENGTH + 20) * sizeof(char));
     int i, x = 0;
     iterable_t temp = abs(dec->exp);
     iterable_t temp2;
-
     if (temp != 0) {
         temp2 = (iterable_t)floor(log10((double)temp) + 1);
     } else {
         temp2 = 1;
     }
-
+    if (dec->negative){
+        string[0] = NEGATIVE;
+        x++;
+    }
     for (i = 0; i < MAX_LENGTH; i++) {
         if (i == N_DIGITS) {
             string[i + x] = PERIOD;  // .
             x++;
         }
-
-        if (dec->digits[i] >= 0) {
-            string[i + x] = dec->digits[i] + ZERO;
-        } else {
-            string[i] = NEGATIVE;
-            x++;
-            string[i + x] = -(dec->digits[i]) + ZERO;
-        }
+        string[i + x] = dec->digits[i] + '0';
+        //} else {
+        //
+        //    string[i + x] = -(dec->digits[i]) + '0';
+        //}
     }
 
     string[MAX_LENGTH + x] = CAPITAL_E;
     x++;
-
     if (temp != 0) {
         if (dec->exp < 0) {
             string[MAX_LENGTH + x] = NEGATIVE;
@@ -149,7 +147,7 @@ static char* _dec_2_str(const _cydecimal_ptr dec) {
         }
 
         for (i = 0; i < temp2; i++) {
-            string[MAX_LENGTH + x + i] = (temp % 10) + ZERO;
+            string[MAX_LENGTH + x + i] = (temp % 10) + '0';
             temp = (iterable_t)(temp*0.1);
         }
 
@@ -204,6 +202,9 @@ static inline bool _true_greater_than(_cydecimal_ptr first, _cydecimal_ptr secon
 
 static inline bool _eq_digits(const _cydecimal_ptr first, const _cydecimal_ptr second){
     iterable_t i;
+    if (first->negative != second->negative){
+        return false;
+    }
     for (i = 0; i < MAX_LENGTH; i++) {
         if (first->digits[i] != second->digits[i]) {
             return false;
@@ -264,8 +265,8 @@ static inline bool _true_less_than(_cydecimal_ptr first, _cydecimal_ptr second){
     return _less_than_digits(first, second);
 }
 
-static inline iterable_t _n_precision(const _cydecimal_ptr first){
-    iterable_t i;
+static inline exponent_t _n_precision(const _cydecimal_ptr first){
+    exponent_t i;
     for (i = MAX_INDICE; i >= N_PRECISION_I; i--) {
         if (first->digits[i] != 0) {
             return i - N_PRECISION_I;
@@ -331,18 +332,12 @@ static inline struct _cydecimal _empty_decimal(){
 }
 
 static inline struct _cydecimal _abs_dec(struct _cydecimal first){
-    if (!first.negative){
-        return first;
-    }
     first.negative = false;
-    iterable_t i;
-    for (i=0;i<MAX_LENGTH;i++){
-        if (first.digits[i]!=0){
-            first.digits[i] = -first.digits[i];
-            break;
-        }
-    }
     return first;
+}
+
+static inline void _negate(_cydecimal_ptr first){
+    first->negative = !(first->negative);
 }
     '''
     ctypedef unsigned short iterable_t
@@ -393,7 +388,7 @@ static inline struct _cydecimal _abs_dec(struct _cydecimal first){
     const bool _less_than_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
     const bool _eq_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
     const _cydecimal _empty_decimal() noexcept nogil
-
+    const void _negate(_cydecimal_ptr first) noexcept nogil
 cdef inline _cydecimal _norm_decimal_from_double(const double first) noexcept nogil
 cdef inline _cydecimal _decimal_from_string(const char* first) noexcept nogil
 cdef inline _cydecimal _norm_decimal_from_string(const char* first) noexcept nogil
@@ -404,6 +399,7 @@ cdef inline _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) n
 cdef inline _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogil
 cdef inline _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
 cdef inline _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
+cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const int number) noexcept nogil
 
 cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:
     return dereference(first)
@@ -606,8 +602,14 @@ cpdef inline iterable_t n_digits(const _cydecimal first) noexcept nogil:
 cpdef inline iterable_t n_whole_digits(const _cydecimal first) noexcept nogil:
     return _n_whole_digits(&first)
 
-cpdef inline bytes dec_2_str(_cydecimal dec) noexcept:
-    return _dec_2_str(&dec)
+cpdef inline str dec_2_str(_cydecimal dec) noexcept:
+    s = (_dec_2_str(&dec)).decode()
+    truth  =  s[0] == '-'
+    ind = s.index('E')
+    s = s[:ind].lstrip('0')+s[ind:]
+    if truth:
+        s = '-'+(s[1:].lstrip('0'))
+    return s
 
 cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
     _printf_dec(&dec)
@@ -617,6 +619,9 @@ cpdef inline dict square_decimal(const _cydecimal first) noexcept:
 
 cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
     return _format_decimal(_mult_decimals(&first, &second)) 
+
+cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:
+    return _format_decimal(_mult_decimal_decimal_digit(&first, &second, x))
 
 cpdef inline dict empty_decimal() noexcept:
     return _format_decimal(_empty_decimal()) 
