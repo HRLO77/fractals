@@ -28,3 +28,6 @@ cpdef public int main():
 
     print(f"\nmultiplication test\nExpected: {first_d*first_d} {first_d*second_d} {second_d*third_d}")
     print(f"Tested: {dec_str(_mult_decimals(&first_cy, &first_cy))} {dec_str(_mult_decimals(&first_cy, &second_cy))} {dec_str(_mult_decimals(&second_cy, &third_cy))}")
+
+    print(f"\nsquare test\nExpected: {first_d*first_d}, {second_d*second_d}")
+    print(f"Tested: {dec_str(_square_decimal(&first_cy))} {dec_str(_square_decimal(&second_cy))}")
