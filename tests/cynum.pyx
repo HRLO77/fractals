@@ -3,7 +3,7 @@
 from libc.math cimport fabs, floor, ceil
 from libc.stdlib cimport malloc, free, realloc, calloc, abs as cabs
 from libc.string cimport memcpy, strcpy as _strcpy, strlen as _strlen, strrchr as _strrchr, strtok as _strtok, strcat as _strcat, strpbrk as _strpbrk, memset as _memset
-from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t, _normalize_digits, _decimal, CAPITAL_E, ZERO, NEGATIVE, PERIOD, TERMINATOR, _cydecimal_ptr, _is_negative, _empty_decimal, _abs_dec, _printf_dec, norm_decimal_from_string, new_decimal_from_string, norm_decimal_from_int, norm_decimal_from_double, new_decimal_from_int, new_decimal_from_double, new_decimal, empty_decimal, _negate
+from .cynum cimport N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, MAX_INDICE, MAX_LENGTH, _cydecimal, _cydecimal_ptr_2_cydecimal, _empty_char_arr, exponent_t, iterable_t, _normalize_digits, _decimal, CAPITAL_E, ZERO, NEGATIVE, PERIOD, TERMINATOR, _cydecimal_ptr, _empty_decimal, _abs_dec, _printf_dec, norm_decimal_from_string, new_decimal_from_string, norm_decimal_from_int, norm_decimal_from_double, new_decimal_from_int, new_decimal_from_double, new_decimal, empty_decimal, _negate
 from cython.operator cimport preincrement, postincrement, dereference, predecrement, postdecrement
 
 cdef extern from * nogil:
@@ -11,14 +11,20 @@ cdef extern from * nogil:
 
 static struct _cydecimal _square_decimal(const _cydecimal_ptr first) {
     exponent_t i, j, place_val=0;
-    const bool negate = first->negative ^ first->negative;
     unsigned char overflow, x, y;
     struct _cydecimal result = _empty_decimal();
     
     _normalize_digits(first, true);
 
-    result.exp = first->exp + first->exp;
-    result.negative = negate;
+    //printf("%s test\\n", _dec_2_str(first));
+    result.exp = (first->exp + first->exp);
+    // if (first->negative){
+    //     result.exp = -(first->exp + first->exp);
+    // }
+    // else{
+    //     result.exp = (first->exp + first->exp);
+    // }
+    result.negative = false; // always positive :)
 
     for (i = N_DIGITS_I; i > -1; i--) {
         overflow = 0;
@@ -61,7 +67,7 @@ static struct _cydecimal _square_decimal(const _cydecimal_ptr first) {
     return result;
 }
 
-static struct _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, int number) {
+static struct _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, int number) { // this function is USELESS
     exponent_t i, j, place_val=0;
     const bool negate = (first->negative ^ second->negative) ^ (number < 0);
     number = abs(number);

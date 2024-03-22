@@ -265,14 +265,14 @@ static inline bool _true_less_than(_cydecimal_ptr first, _cydecimal_ptr second){
     return _less_than_digits(first, second);
 }
 
-static inline exponent_t _n_precision(const _cydecimal_ptr first){
-    exponent_t i;
+static inline iterable_t _n_precision(const _cydecimal_ptr first){
+    iterable_t i;
     for (i = MAX_INDICE; i >= N_PRECISION_I; i--) {
         if (first->digits[i] != 0) {
             return i - N_PRECISION_I;
         }
     }
-    return N_PRECISION;
+    return 0;
 }
 
 static inline iterable_t _n_empty_zeros(const _cydecimal_ptr first){
@@ -299,25 +299,15 @@ static inline iterable_t _n_digits(const _cydecimal_ptr first){
     return (iterable_t)(_n_precision(first)) + (iterable_t)(_n_whole_digits(first));
 }
 
-static inline void _is_negative(_cydecimal_ptr first){
-    iterable_t i;
-    for (i=0;i<MAX_LENGTH;i++){
-        if ((first->digits[i])!=0){
-            first->negative = (first->digits[i]) < 0;
-            break;
-        };
-    };
-}
-
 static inline void _normalize_digits(_cydecimal_ptr first, const bool mode){
     iterable_t i;
     if (mode) {
         i = _n_precision(first);
-        _left_shift_digits(first, i);
+        if (i !=0){_left_shift_digits(first, i);};
         return;
     } else {
         i = _n_empty_zeros(first);
-        _right_shift_digits(first, i);
+        if (i!=0){_right_shift_digits(first, i);};
         return;
     }
 }
@@ -383,7 +373,6 @@ static inline void _negate(_cydecimal_ptr first){
     const iterable_t _n_whole_digits(const _cydecimal_ptr first) noexcept nogil
     const void _normalize_digits(_cydecimal_ptr first, const bool mode) noexcept nogil
     const char* _dec_2_str(const _cydecimal_ptr dec) noexcept nogil
-    const void _is_negative(_cydecimal_ptr first) noexcept nogil
     const bool _greater_than_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
     const bool _less_than_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
     const bool _eq_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
