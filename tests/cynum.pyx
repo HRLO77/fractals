@@ -421,11 +421,11 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
     char x, y, res=0;
     bool small = false, negate = false, both=(first.negative && second.negative);
     struct _cydecimal temp;
-    if (first.exp > second.exp){  // bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
-        _left_shift_digits(&second, first.exp-second.exp);  // bring up value
+    if (first.exp > second.exp){  // we want to BRING ALL DIGITS TO THE LEFT OF THE DECIMAL NOW
+        _left_shift_digits(&first, first.exp-second.exp);  // bring up value
     }
     else if (second.exp > first.exp){
-        _left_shift_digits(&first, second.exp-first.exp);  // bring up value
+        _left_shift_digits(&second, second.exp-first.exp);  // bring up value
         //temp = second;
         //second = first;
         //first = temp;  // swap
@@ -507,18 +507,21 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
 static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second) {
     iterable_t i;
     if (first.exp > second.exp) {
-        _left_shift_digits(&second, (first.exp - second.exp));
+        _left_shift_digits(&first, (first.exp - second.exp));
     } else if (second.exp > first.exp) {
-        _left_shift_digits(&first, second.exp - first.exp);
+        _left_shift_digits(&second, second.exp - first.exp);
     }
     if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
         if (second.negative){
             _negate(&second);
+            return _subtract_decimals(first, second);
         }
         else{
             _negate(&first);
+            first = _subtract_decimals(first, second);
+            _negate(&first);
+            return first;
         }
-        return _subtract_decimals(first, second);
     }
     else if (first.negative && second.negative){  // both are negative, add their absolute and returns its negative.
 

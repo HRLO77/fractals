@@ -5,35 +5,7 @@
     "distutils": {
         "depends": [],
         "extra_compile_args": [
-            "-Ofast",
-            "-funsafe-math-optimizations",
-            "-mtune=native",
-            "-march=native",
-            "-ffinite-math-only",
-            "-freciprocal-math",
-            "-shared",
-            "-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION",
-            "-std=c++20",
-            "-fno-trapping-math",
-            "-fno-math-errno",
-            "-fno-signed-zeros",
-            "-falign-loops",
-            "-ffp-contract=fast",
-            "-ftree-vectorize",
-            "-mavx",
-            "-mavx2",
-            "-ftree-vectorizer-verbose=5",
-            "-fopenmp",
-            "-faggressive-loop-optimizations",
-            "-floop-nest-optimize",
-            "-funroll-all-loops",
-            "-ftree-parallelize-loops=5",
-            "-ftree-loop-optimize",
-            "-floop-parallelize-all",
-            "-ffinite-loops",
-            "-Wwrite-strings",
-            "-lgomp",
-            "-fprefetch-loop-arrays"
+            "-O1"
         ],
         "extra_link_args": [
             "-static-libgcc",
@@ -1154,7 +1126,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)151)
+#define N_DIGITS ((iterable_t)50)
 #define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
@@ -1891,11 +1863,11 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
     char x, y, res=0;
     bool small = false, negate = false, both=(first.negative && second.negative);
     struct _cydecimal temp;
-    if (first.exp > second.exp){  // bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
-        _left_shift_digits(&second, first.exp-second.exp);  // bring up value
+    if (first.exp > second.exp){  // we want to BRING ALL DIGITS TO THE LEFT OF THE DECIMAL NOW
+        _left_shift_digits(&first, first.exp-second.exp);  // bring up value
     }
     else if (second.exp > first.exp){
-        _left_shift_digits(&first, second.exp-first.exp);  // bring up value
+        _left_shift_digits(&second, second.exp-first.exp);  // bring up value
         //temp = second;
         //second = first;
         //first = temp;  // swap
@@ -1976,21 +1948,22 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
 
 static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second) {
     iterable_t i;
-    printf("%s %s testing %d\n", _dec_2_str(&first), _dec_2_str(&second), first.exp - second.exp);
     if (first.exp > second.exp) {
-        _left_shift_digits(&second, (first.exp - second.exp));
+        _left_shift_digits(&first, (first.exp - second.exp));
     } else if (second.exp > first.exp) {
-        _left_shift_digits(&first, second.exp - first.exp);
+        _left_shift_digits(&second, second.exp - first.exp);
     }
-    printf("%s %s after\n", _dec_2_str(&first), _dec_2_str(&second));
     if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
         if (second.negative){
             _negate(&second);
+            return _subtract_decimals(first, second);
         }
         else{
             _negate(&first);
+            first = _subtract_decimals(first, second);
+            _negate(&first);
+            return first;
         }
-        return _subtract_decimals(first, second);
     }
     else if (first.negative && second.negative){  // both are negative, add their absolute and returns its negative.
 
@@ -9556,7 +9529,7 @@ static PyObject *__pyx_pf_5tests_5cynum_60test(CYTHON_UNUSED PyObject *__pyx_sel
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":570
+/* "tests/cynum.pyx":571
  *     const _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
  * 
  * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -9576,7 +9549,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   iterable_t __pyx_t_3;
   iterable_t __pyx_t_4;
 
-  /* "tests/cynum.pyx":571
+  /* "tests/cynum.pyx":572
  * 
  * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:
  *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))             # <<<<<<<<<<<<<<
@@ -9585,7 +9558,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
   __pyx_v_string = ((char *)malloc(((MAX_LENGTH + 25) * (sizeof(char)))));
 
-  /* "tests/cynum.pyx":572
+  /* "tests/cynum.pyx":573
  * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:
  *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
  *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2             # <<<<<<<<<<<<<<
@@ -9595,7 +9568,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   __pyx_v_x = 0;
   __pyx_v_temp = abs(__pyx_v_dec->exp);
 
-  /* "tests/cynum.pyx":573
+  /* "tests/cynum.pyx":574
  *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
  *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
  *     if temp != 0:             # <<<<<<<<<<<<<<
@@ -9605,7 +9578,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   __pyx_t_1 = (__pyx_v_temp != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":574
+    /* "tests/cynum.pyx":575
  *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
  *     if temp != 0:
  *         temp2 = <iterable_t>floor(log10((temp))+1)             # <<<<<<<<<<<<<<
@@ -9614,7 +9587,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
     __pyx_v_temp2 = ((iterable_t)floor((log10(__pyx_v_temp) + 1.0)));
 
-    /* "tests/cynum.pyx":573
+    /* "tests/cynum.pyx":574
  *     cdef char* string = <char*>malloc(((MAX_LENGTH)+25)*sizeof(char))
  *     cdef iterable_t i, x = 0, temp = cabs(dec.exp), temp2
  *     if temp != 0:             # <<<<<<<<<<<<<<
@@ -9624,7 +9597,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pyx":576
+  /* "tests/cynum.pyx":577
  *         temp2 = <iterable_t>floor(log10((temp))+1)
  *     else:
  *         temp2 = 1             # <<<<<<<<<<<<<<
@@ -9636,7 +9609,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pyx":577
+  /* "tests/cynum.pyx":578
  *     else:
  *         temp2 = 1
  *     for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
@@ -9648,7 +9621,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
     __pyx_v_i = __pyx_t_4;
 
-    /* "tests/cynum.pyx":578
+    /* "tests/cynum.pyx":579
  *         temp2 = 1
  *     for i in range(MAX_LENGTH):
  *         if i == N_DIGITS:             # <<<<<<<<<<<<<<
@@ -9658,7 +9631,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     __pyx_t_1 = (__pyx_v_i == N_DIGITS);
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":579
+      /* "tests/cynum.pyx":580
  *     for i in range(MAX_LENGTH):
  *         if i == N_DIGITS:
  *             string[i+x] = b'.'  # .             # <<<<<<<<<<<<<<
@@ -9667,7 +9640,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (__pyx_v_string[(__pyx_v_i + __pyx_v_x)]) = '.';
 
-      /* "tests/cynum.pyx":580
+      /* "tests/cynum.pyx":581
  *         if i == N_DIGITS:
  *             string[i+x] = b'.'  # .
  *             postincrement(x)             # <<<<<<<<<<<<<<
@@ -9676,7 +9649,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (void)((__pyx_v_x++));
 
-      /* "tests/cynum.pyx":578
+      /* "tests/cynum.pyx":579
  *         temp2 = 1
  *     for i in range(MAX_LENGTH):
  *         if i == N_DIGITS:             # <<<<<<<<<<<<<<
@@ -9685,7 +9658,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
     }
 
-    /* "tests/cynum.pyx":581
+    /* "tests/cynum.pyx":582
  *             string[i+x] = b'.'  # .
  *             postincrement(x)
  *         if dec.digits[i] >= 0:             # <<<<<<<<<<<<<<
@@ -9695,7 +9668,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     __pyx_t_1 = ((__pyx_v_dec->digits[__pyx_v_i]) >= 0);
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":582
+      /* "tests/cynum.pyx":583
  *             postincrement(x)
  *         if dec.digits[i] >= 0:
  *             string[i+x] = dec.digits[i]+ZERO             # <<<<<<<<<<<<<<
@@ -9704,7 +9677,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (__pyx_v_string[(__pyx_v_i + __pyx_v_x)]) = ((__pyx_v_dec->digits[__pyx_v_i]) + ZERO);
 
-      /* "tests/cynum.pyx":581
+      /* "tests/cynum.pyx":582
  *             string[i+x] = b'.'  # .
  *             postincrement(x)
  *         if dec.digits[i] >= 0:             # <<<<<<<<<<<<<<
@@ -9714,7 +9687,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
       goto __pyx_L7;
     }
 
-    /* "tests/cynum.pyx":585
+    /* "tests/cynum.pyx":586
  *             pass
  *         else:
  *             string[i] = NEGATIVE             # <<<<<<<<<<<<<<
@@ -9724,7 +9697,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     /*else*/ {
       (__pyx_v_string[__pyx_v_i]) = NEGATIVE;
 
-      /* "tests/cynum.pyx":586
+      /* "tests/cynum.pyx":587
  *         else:
  *             string[i] = NEGATIVE
  *             postincrement(x)             # <<<<<<<<<<<<<<
@@ -9733,7 +9706,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (void)((__pyx_v_x++));
 
-      /* "tests/cynum.pyx":587
+      /* "tests/cynum.pyx":588
  *             string[i] = NEGATIVE
  *             postincrement(x)
  *             string[i+x] = (-(dec.digits[i]))+ZERO             # <<<<<<<<<<<<<<
@@ -9745,7 +9718,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     __pyx_L7:;
   }
 
-  /* "tests/cynum.pyx":588
+  /* "tests/cynum.pyx":589
  *             postincrement(x)
  *             string[i+x] = (-(dec.digits[i]))+ZERO
  *     string[MAX_LENGTH+x] = CAPITAL_E # E             # <<<<<<<<<<<<<<
@@ -9754,7 +9727,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
   (__pyx_v_string[(MAX_LENGTH + __pyx_v_x)]) = CAPITAL_E;
 
-  /* "tests/cynum.pyx":589
+  /* "tests/cynum.pyx":590
  *             string[i+x] = (-(dec.digits[i]))+ZERO
  *     string[MAX_LENGTH+x] = CAPITAL_E # E
  *     postincrement(x)             # <<<<<<<<<<<<<<
@@ -9763,7 +9736,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
   (void)((__pyx_v_x++));
 
-  /* "tests/cynum.pyx":590
+  /* "tests/cynum.pyx":591
  *     string[MAX_LENGTH+x] = CAPITAL_E # E
  *     postincrement(x)
  *     if temp != 0:             # <<<<<<<<<<<<<<
@@ -9773,7 +9746,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   __pyx_t_1 = (__pyx_v_temp != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":591
+    /* "tests/cynum.pyx":592
  *     postincrement(x)
  *     if temp != 0:
  *         if dec.exp < 0:             # <<<<<<<<<<<<<<
@@ -9783,7 +9756,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     __pyx_t_1 = (__pyx_v_dec->exp < 0);
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":592
+      /* "tests/cynum.pyx":593
  *     if temp != 0:
  *         if dec.exp < 0:
  *             string[MAX_LENGTH+x] = NEGATIVE  # -             # <<<<<<<<<<<<<<
@@ -9792,7 +9765,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (__pyx_v_string[(MAX_LENGTH + __pyx_v_x)]) = NEGATIVE;
 
-      /* "tests/cynum.pyx":593
+      /* "tests/cynum.pyx":594
  *         if dec.exp < 0:
  *             string[MAX_LENGTH+x] = NEGATIVE  # -
  *             postincrement(x)             # <<<<<<<<<<<<<<
@@ -9801,7 +9774,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (void)((__pyx_v_x++));
 
-      /* "tests/cynum.pyx":591
+      /* "tests/cynum.pyx":592
  *     postincrement(x)
  *     if temp != 0:
  *         if dec.exp < 0:             # <<<<<<<<<<<<<<
@@ -9810,7 +9783,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
     }
 
-    /* "tests/cynum.pyx":594
+    /* "tests/cynum.pyx":595
  *             string[MAX_LENGTH+x] = NEGATIVE  # -
  *             postincrement(x)
  *         for i in range(temp2):  # n of digits             # <<<<<<<<<<<<<<
@@ -9822,7 +9795,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
       __pyx_v_i = __pyx_t_4;
 
-      /* "tests/cynum.pyx":595
+      /* "tests/cynum.pyx":596
  *             postincrement(x)
  *         for i in range(temp2):  # n of digits
  *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO             # <<<<<<<<<<<<<<
@@ -9831,7 +9804,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
       (__pyx_v_string[((MAX_LENGTH + __pyx_v_x) + __pyx_v_i)]) = ((__pyx_v_temp % 10) + ZERO);
 
-      /* "tests/cynum.pyx":596
+      /* "tests/cynum.pyx":597
  *         for i in range(temp2):  # n of digits
  *             string[MAX_LENGTH+x+i] = (temp%10)+ZERO
  *             temp = <iterable_t>temp//10             # <<<<<<<<<<<<<<
@@ -9841,7 +9814,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
       __pyx_v_temp = (((iterable_t)__pyx_v_temp) / 10);
     }
 
-    /* "tests/cynum.pyx":590
+    /* "tests/cynum.pyx":591
  *     string[MAX_LENGTH+x] = CAPITAL_E # E
  *     postincrement(x)
  *     if temp != 0:             # <<<<<<<<<<<<<<
@@ -9851,7 +9824,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
     goto __pyx_L8;
   }
 
-  /* "tests/cynum.pyx":598
+  /* "tests/cynum.pyx":599
  *             temp = <iterable_t>temp//10
  *     else:
  *         string[MAX_LENGTH+x] = ZERO  # set to zero             # <<<<<<<<<<<<<<
@@ -9863,7 +9836,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   }
   __pyx_L8:;
 
-  /* "tests/cynum.pyx":600
+  /* "tests/cynum.pyx":601
  *         string[MAX_LENGTH+x] = ZERO  # set to zero
  *     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
  *     string[MAX_LENGTH+temp2+x] = TERMINATOR             # <<<<<<<<<<<<<<
@@ -9872,7 +9845,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
  */
   (__pyx_v_string[((MAX_LENGTH + __pyx_v_temp2) + __pyx_v_x)]) = TERMINATOR;
 
-  /* "tests/cynum.pyx":601
+  /* "tests/cynum.pyx":602
  *     #realloc(string, sizeof(char)*(MAX_LENGTH+temp2+x+1))
  *     string[MAX_LENGTH+temp2+x] = TERMINATOR
  *     return string             # <<<<<<<<<<<<<<
@@ -9882,7 +9855,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   __pyx_r = __pyx_v_string;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":570
+  /* "tests/cynum.pyx":571
  *     const _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
  * 
  * cdef char* _dec_2_str_cy(const _cydecimal_ptr dec) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -9895,7 +9868,7 @@ static char *__pyx_f_5tests_5cynum__dec_2_str_cy(_cydecimal_ptr const __pyx_v_de
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":603
+/* "tests/cynum.pyx":604
  *     return string
  * 
  * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
@@ -9920,7 +9893,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   int __pyx_t_1;
   iterable_t __pyx_t_2;
 
-  /* "tests/cynum.pyx":605
+  /* "tests/cynum.pyx":606
  * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
  *     cdef _cydecimal res
  *     cdef iterable_t length = _strlen(first)             # <<<<<<<<<<<<<<
@@ -9929,7 +9902,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_length = strlen(__pyx_v_first);
 
-  /* "tests/cynum.pyx":606
+  /* "tests/cynum.pyx":607
  *     cdef _cydecimal res
  *     cdef iterable_t length = _strlen(first)
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))             # <<<<<<<<<<<<<<
@@ -9938,7 +9911,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_strtok_backup = ((char *)malloc((__pyx_v_length * (sizeof(char)))));
 
-  /* "tests/cynum.pyx":607
+  /* "tests/cynum.pyx":608
  *     cdef iterable_t length = _strlen(first)
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
  *     memcpy(strtok_backup, first, sizeof(first))             # <<<<<<<<<<<<<<
@@ -9947,7 +9920,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   (void)(memcpy(__pyx_v_strtok_backup, __pyx_v_first, (sizeof(__pyx_v_first))));
 
-  /* "tests/cynum.pyx":608
+  /* "tests/cynum.pyx":609
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
  *     memcpy(strtok_backup, first, sizeof(first))
  *     cdef char* small = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
@@ -9956,7 +9929,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_small = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
 
-  /* "tests/cynum.pyx":609
+  /* "tests/cynum.pyx":610
  *     memcpy(strtok_backup, first, sizeof(first))
  *     cdef char* small = <char*>malloc(sizeof(char)*length)
  *     cdef char* small_copy = small             # <<<<<<<<<<<<<<
@@ -9965,7 +9938,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_small_copy = __pyx_v_small;
 
-  /* "tests/cynum.pyx":610
+  /* "tests/cynum.pyx":611
  *     cdef char* small = <char*>malloc(sizeof(char)*length)
  *     cdef char* small_copy = small
  *     small = _strrchr(first, PERIOD)             # <<<<<<<<<<<<<<
@@ -9974,7 +9947,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_small = strrchr(__pyx_v_first, PERIOD);
 
-  /* "tests/cynum.pyx":611
+  /* "tests/cynum.pyx":612
  *     cdef char* small_copy = small
  *     small = _strrchr(first, PERIOD)
  *     small = small+1             # <<<<<<<<<<<<<<
@@ -9983,7 +9956,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_small = (__pyx_v_small + 1);
 
-  /* "tests/cynum.pyx":612
+  /* "tests/cynum.pyx":613
  *     small = _strrchr(first, PERIOD)
  *     small = small+1
  *     cdef char* large = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
@@ -9992,7 +9965,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
 
-  /* "tests/cynum.pyx":613
+  /* "tests/cynum.pyx":614
  *     small = small+1
  *     cdef char* large = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_copy = large             # <<<<<<<<<<<<<<
@@ -10001,7 +9974,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_copy = __pyx_v_large;
 
-  /* "tests/cynum.pyx":614
+  /* "tests/cynum.pyx":615
  *     cdef char* large = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_copy = large
  *     large = _strtok(strtok_backup, b'.')             # <<<<<<<<<<<<<<
@@ -10010,7 +9983,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large = strtok(__pyx_v_strtok_backup, ((char const *)"."));
 
-  /* "tests/cynum.pyx":615
+  /* "tests/cynum.pyx":616
  *     cdef char* large_copy = large
  *     large = _strtok(strtok_backup, b'.')
  *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
@@ -10019,7 +9992,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_norm = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
 
-  /* "tests/cynum.pyx":616
+  /* "tests/cynum.pyx":617
  *     large = _strtok(strtok_backup, b'.')
  *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_norm_copy = large_norm             # <<<<<<<<<<<<<<
@@ -10028,7 +10001,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_norm_copy = __pyx_v_large_norm;
 
-  /* "tests/cynum.pyx":617
+  /* "tests/cynum.pyx":618
  *     cdef char* large_norm = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_norm_copy = large_norm
  *     large_norm = large             # <<<<<<<<<<<<<<
@@ -10037,7 +10010,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_norm = __pyx_v_large;
 
-  /* "tests/cynum.pyx":618
+  /* "tests/cynum.pyx":619
  *     cdef char* large_norm_copy = large_norm
  *     large_norm = large
  *     free(strtok_backup)             # <<<<<<<<<<<<<<
@@ -10046,7 +10019,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   free(__pyx_v_strtok_backup);
 
-  /* "tests/cynum.pyx":620
+  /* "tests/cynum.pyx":621
  *     free(strtok_backup)
  * 
  *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)             # <<<<<<<<<<<<<<
@@ -10056,7 +10029,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   __pyx_v_large_len = strlen(__pyx_v_large);
   __pyx_v_small_len = strlen(__pyx_v_small);
 
-  /* "tests/cynum.pyx":621
+  /* "tests/cynum.pyx":622
  * 
  *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
  *     if large_len > N_DIGITS:             # <<<<<<<<<<<<<<
@@ -10066,7 +10039,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   __pyx_t_1 = (__pyx_v_large_len > N_DIGITS);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":622
+    /* "tests/cynum.pyx":623
  *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
  *     if large_len > N_DIGITS:
  *         large_len = N_DIGITS  # prefer larger value over smaller, more precise             # <<<<<<<<<<<<<<
@@ -10075,7 +10048,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
     __pyx_v_large_len = N_DIGITS;
 
-    /* "tests/cynum.pyx":621
+    /* "tests/cynum.pyx":622
  * 
  *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)
  *     if large_len > N_DIGITS:             # <<<<<<<<<<<<<<
@@ -10084,7 +10057,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   }
 
-  /* "tests/cynum.pyx":623
+  /* "tests/cynum.pyx":624
  *     if large_len > N_DIGITS:
  *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
  *     if (small_len+large_len) > N_DIGITS:             # <<<<<<<<<<<<<<
@@ -10094,7 +10067,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   __pyx_t_1 = ((__pyx_v_small_len + __pyx_v_large_len) > N_DIGITS);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":624
+    /* "tests/cynum.pyx":625
  *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
  *     if (small_len+large_len) > N_DIGITS:
  *         i = N_DIGITS-large_len             # <<<<<<<<<<<<<<
@@ -10103,7 +10076,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
     __pyx_v_i = (N_DIGITS - __pyx_v_large_len);
 
-    /* "tests/cynum.pyx":625
+    /* "tests/cynum.pyx":626
  *     if (small_len+large_len) > N_DIGITS:
  *         i = N_DIGITS-large_len
  *         if small_len > i:             # <<<<<<<<<<<<<<
@@ -10113,7 +10086,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
     __pyx_t_1 = (__pyx_v_small_len > __pyx_v_i);
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":626
+      /* "tests/cynum.pyx":627
  *         i = N_DIGITS-large_len
  *         if small_len > i:
  *             small_len = i # save any remaining space for the precise digits             # <<<<<<<<<<<<<<
@@ -10122,7 +10095,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
       __pyx_v_small_len = __pyx_v_i;
 
-      /* "tests/cynum.pyx":625
+      /* "tests/cynum.pyx":626
  *     if (small_len+large_len) > N_DIGITS:
  *         i = N_DIGITS-large_len
  *         if small_len > i:             # <<<<<<<<<<<<<<
@@ -10131,7 +10104,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
     }
 
-    /* "tests/cynum.pyx":623
+    /* "tests/cynum.pyx":624
  *     if large_len > N_DIGITS:
  *         large_len = N_DIGITS  # prefer larger value over smaller, more precise
  *     if (small_len+large_len) > N_DIGITS:             # <<<<<<<<<<<<<<
@@ -10140,7 +10113,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   }
 
-  /* "tests/cynum.pyx":627
+  /* "tests/cynum.pyx":628
  *         if small_len > i:
  *             small_len = i # save any remaining space for the precise digits
  *     free(large_copy)             # <<<<<<<<<<<<<<
@@ -10149,7 +10122,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   free(__pyx_v_large_copy);
 
-  /* "tests/cynum.pyx":628
+  /* "tests/cynum.pyx":629
  *             small_len = i # save any remaining space for the precise digits
  *     free(large_copy)
  *     large_len = large_len+small_len             # <<<<<<<<<<<<<<
@@ -10158,7 +10131,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_len = (__pyx_v_large_len + __pyx_v_small_len);
 
-  /* "tests/cynum.pyx":629
+  /* "tests/cynum.pyx":630
  *     free(large_copy)
  *     large_len = large_len+small_len
  *     large = <char*>malloc(sizeof(char)*(large_len))             # <<<<<<<<<<<<<<
@@ -10167,7 +10140,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_large_len)));
 
-  /* "tests/cynum.pyx":630
+  /* "tests/cynum.pyx":631
  *     large_len = large_len+small_len
  *     large = <char*>malloc(sizeof(char)*(large_len))
  *     large_copy = large             # <<<<<<<<<<<<<<
@@ -10176,7 +10149,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_large_copy = __pyx_v_large;
 
-  /* "tests/cynum.pyx":631
+  /* "tests/cynum.pyx":632
  *     large = <char*>malloc(sizeof(char)*(large_len))
  *     large_copy = large
  *     memcpy(&large, &large_norm, (length))             # <<<<<<<<<<<<<<
@@ -10185,7 +10158,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   (void)(memcpy((&__pyx_v_large), (&__pyx_v_large_norm), __pyx_v_length));
 
-  /* "tests/cynum.pyx":632
+  /* "tests/cynum.pyx":633
  *     large_copy = large
  *     memcpy(&large, &large_norm, (length))
  *     free(large_norm_copy)             # <<<<<<<<<<<<<<
@@ -10194,7 +10167,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   free(__pyx_v_large_norm_copy);
 
-  /* "tests/cynum.pyx":633
+  /* "tests/cynum.pyx":634
  *     memcpy(&large, &large_norm, (length))
  *     free(large_norm_copy)
  *     _strcat(large, small)             # <<<<<<<<<<<<<<
@@ -10203,7 +10176,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   (void)(strcat(__pyx_v_large, __pyx_v_small));
 
-  /* "tests/cynum.pyx":634
+  /* "tests/cynum.pyx":635
  *     free(large_norm_copy)
  *     _strcat(large, small)
  *     free(small_copy)             # <<<<<<<<<<<<<<
@@ -10212,7 +10185,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   free(__pyx_v_small_copy);
 
-  /* "tests/cynum.pyx":635
+  /* "tests/cynum.pyx":636
  *     _strcat(large, small)
  *     free(small_copy)
  *     res.exp = small_len  # increase precise digits             # <<<<<<<<<<<<<<
@@ -10221,7 +10194,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   __pyx_v_res.exp = __pyx_v_small_len;
 
-  /* "tests/cynum.pyx":640
+  /* "tests/cynum.pyx":641
  *     #    digits[i] = 0
  * 
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))             # <<<<<<<<<<<<<<
@@ -10230,7 +10203,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), (MAX_LENGTH * (sizeof(char)))));
 
-  /* "tests/cynum.pyx":642
+  /* "tests/cynum.pyx":643
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
  * 
  *     for i in range((large_len)-1, -1, -1):             # <<<<<<<<<<<<<<
@@ -10240,7 +10213,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   for (__pyx_t_2 = (__pyx_v_large_len - 1) + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
     __pyx_v_i = __pyx_t_2;
 
-    /* "tests/cynum.pyx":643
+    /* "tests/cynum.pyx":644
  * 
  *     for i in range((large_len)-1, -1, -1):
  *         res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-ZERO             # <<<<<<<<<<<<<<
@@ -10250,7 +10223,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((__pyx_v_large[((__pyx_v_large_len - 1) - __pyx_v_i)]) - ZERO);
   }
 
-  /* "tests/cynum.pyx":644
+  /* "tests/cynum.pyx":645
  *     for i in range((large_len)-1, -1, -1):
  *         res.digits[N_DIGITS_I-i] = large[(large_len)-1-i]-ZERO
  *     free(large_copy)             # <<<<<<<<<<<<<<
@@ -10259,7 +10232,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
  */
   free(__pyx_v_large_copy);
 
-  /* "tests/cynum.pyx":647
+  /* "tests/cynum.pyx":648
  * 
  *     #memcpy(&res.digits, digits, sizeof(digits))
  *     return res             # <<<<<<<<<<<<<<
@@ -10269,7 +10242,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":603
+  /* "tests/cynum.pyx":604
  *     return string
  * 
  * cdef _cydecimal _norm_decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
@@ -10282,7 +10255,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_string_cy(char
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":649
+/* "tests/cynum.pyx":650
  *     return res
  * 
  * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
@@ -10306,7 +10279,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   iterable_t __pyx_t_2;
   iterable_t __pyx_t_3;
 
-  /* "tests/cynum.pyx":651
+  /* "tests/cynum.pyx":652
  * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself
  *     cdef _cydecimal res
  *     cdef iterable_t length = _strlen(first)             # <<<<<<<<<<<<<<
@@ -10315,7 +10288,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_length = strlen(__pyx_v_first);
 
-  /* "tests/cynum.pyx":652
+  /* "tests/cynum.pyx":653
  *     cdef _cydecimal res
  *     cdef iterable_t length = _strlen(first)
  *     res.exp = 0             # <<<<<<<<<<<<<<
@@ -10324,7 +10297,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_res.exp = 0;
 
-  /* "tests/cynum.pyx":653
+  /* "tests/cynum.pyx":654
  *     cdef iterable_t length = _strlen(first)
  *     res.exp = 0
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))             # <<<<<<<<<<<<<<
@@ -10333,7 +10306,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_strtok_backup = ((char *)malloc((__pyx_v_length * (sizeof(char)))));
 
-  /* "tests/cynum.pyx":654
+  /* "tests/cynum.pyx":655
  *     res.exp = 0
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
  *     memcpy(strtok_backup, first, sizeof(first))             # <<<<<<<<<<<<<<
@@ -10342,7 +10315,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   (void)(memcpy(__pyx_v_strtok_backup, __pyx_v_first, (sizeof(__pyx_v_first))));
 
-  /* "tests/cynum.pyx":655
+  /* "tests/cynum.pyx":656
  *     cdef char* strtok_backup = <char*>malloc(length*sizeof(char))
  *     memcpy(strtok_backup, first, sizeof(first))
  *     cdef char* small = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
@@ -10351,7 +10324,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_small = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
 
-  /* "tests/cynum.pyx":656
+  /* "tests/cynum.pyx":657
  *     memcpy(strtok_backup, first, sizeof(first))
  *     cdef char* small = <char*>malloc(sizeof(char)*length)
  *     cdef char* small_copy = small             # <<<<<<<<<<<<<<
@@ -10360,7 +10333,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_small_copy = __pyx_v_small;
 
-  /* "tests/cynum.pyx":657
+  /* "tests/cynum.pyx":658
  *     cdef char* small = <char*>malloc(sizeof(char)*length)
  *     cdef char* small_copy = small
  *     small = _strrchr(first, PERIOD)             # <<<<<<<<<<<<<<
@@ -10369,7 +10342,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_small = strrchr(__pyx_v_first, PERIOD);
 
-  /* "tests/cynum.pyx":658
+  /* "tests/cynum.pyx":659
  *     cdef char* small_copy = small
  *     small = _strrchr(first, PERIOD)
  *     small = small+1             # <<<<<<<<<<<<<<
@@ -10378,7 +10351,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_small = (__pyx_v_small + 1);
 
-  /* "tests/cynum.pyx":659
+  /* "tests/cynum.pyx":660
  *     small = _strrchr(first, PERIOD)
  *     small = small+1
  *     cdef char* large = <char*>malloc(sizeof(char)*length)             # <<<<<<<<<<<<<<
@@ -10387,7 +10360,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_large = ((char *)malloc(((sizeof(char)) * __pyx_v_length)));
 
-  /* "tests/cynum.pyx":660
+  /* "tests/cynum.pyx":661
  *     small = small+1
  *     cdef char* large = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_copy = large             # <<<<<<<<<<<<<<
@@ -10396,7 +10369,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_large_copy = __pyx_v_large;
 
-  /* "tests/cynum.pyx":661
+  /* "tests/cynum.pyx":662
  *     cdef char* large = <char*>malloc(sizeof(char)*length)
  *     cdef char* large_copy = large
  *     large = _strtok(strtok_backup, b'.')             # <<<<<<<<<<<<<<
@@ -10405,7 +10378,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   __pyx_v_large = strtok(__pyx_v_strtok_backup, ((char const *)"."));
 
-  /* "tests/cynum.pyx":662
+  /* "tests/cynum.pyx":663
  *     cdef char* large_copy = large
  *     large = _strtok(strtok_backup, b'.')
  *     free(strtok_backup)             # <<<<<<<<<<<<<<
@@ -10414,7 +10387,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   free(__pyx_v_strtok_backup);
 
-  /* "tests/cynum.pyx":664
+  /* "tests/cynum.pyx":665
  *     free(strtok_backup)
  * 
  *     cdef iterable_t i, large_len = _strlen(large), small_len = _strlen(small)             # <<<<<<<<<<<<<<
@@ -10424,7 +10397,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   __pyx_v_large_len = strlen(__pyx_v_large);
   __pyx_v_small_len = strlen(__pyx_v_small);
 
-  /* "tests/cynum.pyx":668
+  /* "tests/cynum.pyx":669
  *     #for i in range(MAX_LENGTH):
  *     #    digits[i] = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))             # <<<<<<<<<<<<<<
@@ -10433,7 +10406,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), (MAX_LENGTH * (sizeof(char)))));
 
-  /* "tests/cynum.pyx":669
+  /* "tests/cynum.pyx":670
  *     #    digits[i] = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
  *     _empty_char_arr(res.digits)             # <<<<<<<<<<<<<<
@@ -10442,7 +10415,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   _empty_char_arr(__pyx_v_res.digits);
 
-  /* "tests/cynum.pyx":670
+  /* "tests/cynum.pyx":671
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH*sizeof(char))
  *     _empty_char_arr(res.digits)
  *     for i in range(large_len-1, -1, -1):             # <<<<<<<<<<<<<<
@@ -10452,7 +10425,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   for (__pyx_t_1 = (__pyx_v_large_len - 1) + 1; __pyx_t_1 > -1 + 1; ) { __pyx_t_1-=1;
     __pyx_v_i = __pyx_t_1;
 
-    /* "tests/cynum.pyx":671
+    /* "tests/cynum.pyx":672
  *     _empty_char_arr(res.digits)
  *     for i in range(large_len-1, -1, -1):
  *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO             # <<<<<<<<<<<<<<
@@ -10462,7 +10435,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((__pyx_v_large[((__pyx_v_large_len - 1) - __pyx_v_i)]) - ZERO);
   }
 
-  /* "tests/cynum.pyx":673
+  /* "tests/cynum.pyx":674
  *         res.digits[N_DIGITS_I-i] = large[large_len-1-i]-ZERO
  * 
  *     free(large_copy)             # <<<<<<<<<<<<<<
@@ -10471,7 +10444,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   free(__pyx_v_large_copy);
 
-  /* "tests/cynum.pyx":674
+  /* "tests/cynum.pyx":675
  * 
  *     free(large_copy)
  *     for i in range(small_len):             # <<<<<<<<<<<<<<
@@ -10483,7 +10456,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pyx":675
+    /* "tests/cynum.pyx":676
  *     free(large_copy)
  *     for i in range(small_len):
  *         res.digits[N_DIGITS+i] = small[i]-ZERO             # <<<<<<<<<<<<<<
@@ -10493,7 +10466,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
     (__pyx_v_res.digits[(N_DIGITS + __pyx_v_i)]) = ((__pyx_v_small[__pyx_v_i]) - ZERO);
   }
 
-  /* "tests/cynum.pyx":676
+  /* "tests/cynum.pyx":677
  *     for i in range(small_len):
  *         res.digits[N_DIGITS+i] = small[i]-ZERO
  *     free(small_copy)             # <<<<<<<<<<<<<<
@@ -10502,7 +10475,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
  */
   free(__pyx_v_small_copy);
 
-  /* "tests/cynum.pyx":679
+  /* "tests/cynum.pyx":680
  * 
  *     #memcpy(&res.digits, digits, sizeof(digits))
  *     return res             # <<<<<<<<<<<<<<
@@ -10512,7 +10485,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":649
+  /* "tests/cynum.pyx":650
  *     return res
  * 
  * cdef _cydecimal _decimal_from_string_cy(const char* first) noexcept nogil:  # use in cases where you want to store the actual decimal by itself             # <<<<<<<<<<<<<<
@@ -10525,7 +10498,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_string_cy(char cons
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":681
+/* "tests/cynum.pyx":682
  *     return res
  * 
  * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -10543,7 +10516,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pyx":683
+  /* "tests/cynum.pyx":684
  * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:
  *     cdef iterable_t i
  *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)             # <<<<<<<<<<<<<<
@@ -10552,7 +10525,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
   __pyx_v_large_lim = ((int)floor((log10(abs(__pyx_v_first)) + 1.0)));
 
-  /* "tests/cynum.pyx":685
+  /* "tests/cynum.pyx":686
  *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
  *     cdef _cydecimal res
  *     res.exp = 0             # <<<<<<<<<<<<<<
@@ -10561,7 +10534,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
   __pyx_v_res.exp = 0;
 
-  /* "tests/cynum.pyx":686
+  /* "tests/cynum.pyx":687
  *     cdef _cydecimal res
  *     res.exp = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
@@ -10570,7 +10543,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
 
-  /* "tests/cynum.pyx":688
+  /* "tests/cynum.pyx":689
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
  *     # test: 8204.172
  *     for i in range(N_DIGITS):             # <<<<<<<<<<<<<<
@@ -10582,7 +10555,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pyx":689
+    /* "tests/cynum.pyx":690
  *     # test: 8204.172
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:             # <<<<<<<<<<<<<<
@@ -10592,7 +10565,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
     __pyx_t_4 = (__pyx_v_i <= __pyx_v_large_lim);
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pyx":690
+      /* "tests/cynum.pyx":691
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:
  *             res.digits[N_DIGITS_I-i] = cabs(first)%10             # <<<<<<<<<<<<<<
@@ -10601,7 +10574,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
       (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (abs(__pyx_v_first) % 10);
 
-      /* "tests/cynum.pyx":691
+      /* "tests/cynum.pyx":692
  *         if i <= large_lim:
  *             res.digits[N_DIGITS_I-i] = cabs(first)%10
  *             first = first//10             # <<<<<<<<<<<<<<
@@ -10610,7 +10583,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
       __pyx_v_first = (__pyx_v_first / 10);
 
-      /* "tests/cynum.pyx":689
+      /* "tests/cynum.pyx":690
  *     # test: 8204.172
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:             # <<<<<<<<<<<<<<
@@ -10620,7 +10593,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
       goto __pyx_L5;
     }
 
-    /* "tests/cynum.pyx":693
+    /* "tests/cynum.pyx":694
  *             first = first//10
  *         else:
  *             break             # <<<<<<<<<<<<<<
@@ -10634,7 +10607,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   }
   __pyx_L4_break:;
 
-  /* "tests/cynum.pyx":694
+  /* "tests/cynum.pyx":695
  *         else:
  *             break
  *     if first < 0:             # <<<<<<<<<<<<<<
@@ -10644,7 +10617,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   __pyx_t_4 = (__pyx_v_first < 0);
   if (__pyx_t_4) {
 
-    /* "tests/cynum.pyx":695
+    /* "tests/cynum.pyx":696
  *             break
  *     if first < 0:
  *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])             # <<<<<<<<<<<<<<
@@ -10653,7 +10626,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (-(__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]));
 
-    /* "tests/cynum.pyx":694
+    /* "tests/cynum.pyx":695
  *         else:
  *             break
  *     if first < 0:             # <<<<<<<<<<<<<<
@@ -10662,7 +10635,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
  */
   }
 
-  /* "tests/cynum.pyx":696
+  /* "tests/cynum.pyx":697
  *     if first < 0:
  *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
  *     return res             # <<<<<<<<<<<<<<
@@ -10672,7 +10645,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":681
+  /* "tests/cynum.pyx":682
  *     return res
  * 
  * cdef _cydecimal _decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -10685,7 +10658,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_int_cy(int __pyx_v_
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":698
+/* "tests/cynum.pyx":699
  *     return res
  * 
  * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -10703,7 +10676,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   iterable_t __pyx_t_3;
   int __pyx_t_4;
 
-  /* "tests/cynum.pyx":700
+  /* "tests/cynum.pyx":701
  * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:
  *     cdef iterable_t i
  *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)             # <<<<<<<<<<<<<<
@@ -10712,7 +10685,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
   __pyx_v_large_lim = ((int)floor((log10(abs(__pyx_v_first)) + 1.0)));
 
-  /* "tests/cynum.pyx":702
+  /* "tests/cynum.pyx":703
  *     cdef unsigned char large_lim = <int>floor(log10(cabs(first))+1)
  *     cdef _cydecimal res
  *     res.exp = 0             # <<<<<<<<<<<<<<
@@ -10721,7 +10694,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
   __pyx_v_res.exp = 0;
 
-  /* "tests/cynum.pyx":703
+  /* "tests/cynum.pyx":704
  *     cdef _cydecimal res
  *     res.exp = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
@@ -10730,7 +10703,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
 
-  /* "tests/cynum.pyx":705
+  /* "tests/cynum.pyx":706
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
  *     # test: 8204.172
  *     for i in range(N_DIGITS):             # <<<<<<<<<<<<<<
@@ -10742,7 +10715,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "tests/cynum.pyx":706
+    /* "tests/cynum.pyx":707
  *     # test: 8204.172
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:             # <<<<<<<<<<<<<<
@@ -10752,7 +10725,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
     __pyx_t_4 = (__pyx_v_i <= __pyx_v_large_lim);
     if (__pyx_t_4) {
 
-      /* "tests/cynum.pyx":707
+      /* "tests/cynum.pyx":708
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:
  *             res.digits[N_DIGITS_I-i] = cabs(first)%10             # <<<<<<<<<<<<<<
@@ -10761,7 +10734,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
       (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (abs(__pyx_v_first) % 10);
 
-      /* "tests/cynum.pyx":708
+      /* "tests/cynum.pyx":709
  *         if i <= large_lim:
  *             res.digits[N_DIGITS_I-i] = cabs(first)%10
  *             first = first//10             # <<<<<<<<<<<<<<
@@ -10770,7 +10743,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
       __pyx_v_first = (__pyx_v_first / 10);
 
-      /* "tests/cynum.pyx":706
+      /* "tests/cynum.pyx":707
  *     # test: 8204.172
  *     for i in range(N_DIGITS):
  *         if i <= large_lim:             # <<<<<<<<<<<<<<
@@ -10780,7 +10753,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
       goto __pyx_L5;
     }
 
-    /* "tests/cynum.pyx":710
+    /* "tests/cynum.pyx":711
  *             first = first//10
  *         else:
  *             break             # <<<<<<<<<<<<<<
@@ -10794,7 +10767,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   }
   __pyx_L4_break:;
 
-  /* "tests/cynum.pyx":711
+  /* "tests/cynum.pyx":712
  *         else:
  *             break
  *     if first < 0:             # <<<<<<<<<<<<<<
@@ -10804,7 +10777,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   __pyx_t_4 = (__pyx_v_first < 0);
   if (__pyx_t_4) {
 
-    /* "tests/cynum.pyx":712
+    /* "tests/cynum.pyx":713
  *             break
  *     if first < 0:
  *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])             # <<<<<<<<<<<<<<
@@ -10813,7 +10786,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = (-(__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]));
 
-    /* "tests/cynum.pyx":711
+    /* "tests/cynum.pyx":712
  *         else:
  *             break
  *     if first < 0:             # <<<<<<<<<<<<<<
@@ -10822,7 +10795,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
   }
 
-  /* "tests/cynum.pyx":713
+  /* "tests/cynum.pyx":714
  *     if first < 0:
  *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
  *     _normalize_digits(&res, False)             # <<<<<<<<<<<<<<
@@ -10831,7 +10804,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
  */
   _normalize_digits((&__pyx_v_res), 0);
 
-  /* "tests/cynum.pyx":714
+  /* "tests/cynum.pyx":715
  *         res.digits[N_DIGITS_I-i] = -(res.digits[N_DIGITS_I-i])
  *     _normalize_digits(&res, False)
  *     return res             # <<<<<<<<<<<<<<
@@ -10841,7 +10814,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":698
+  /* "tests/cynum.pyx":699
  *     return res
  * 
  * cdef _cydecimal _norm_decimal_from_int_cy(int first) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -10854,7 +10827,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_int_cy(int __p
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":716
+/* "tests/cynum.pyx":717
  *     return res
  * 
  * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)             # <<<<<<<<<<<<<<
@@ -10873,7 +10846,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
   unsigned char __pyx_t_3;
   iterable_t __pyx_t_4;
 
-  /* "tests/cynum.pyx":717
+  /* "tests/cynum.pyx":718
  * 
  * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)
  *     cdef double temp=first             # <<<<<<<<<<<<<<
@@ -10882,7 +10855,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
   __pyx_v_temp = __pyx_v_first;
 
-  /* "tests/cynum.pyx":721
+  /* "tests/cynum.pyx":722
  *     cdef unsigned char large_lim
  *     cdef _cydecimal res
  *     res.exp = 0             # <<<<<<<<<<<<<<
@@ -10891,7 +10864,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
   __pyx_v_res.exp = 0;
 
-  /* "tests/cynum.pyx":722
+  /* "tests/cynum.pyx":723
  *     cdef _cydecimal res
  *     res.exp = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
@@ -10900,7 +10873,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
 
-  /* "tests/cynum.pyx":723
+  /* "tests/cynum.pyx":724
  *     res.exp = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
  *     while (ceil(fabs(temp))!=fabs(temp)):             # <<<<<<<<<<<<<<
@@ -10911,7 +10884,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
     __pyx_t_1 = (ceil(fabs(__pyx_v_temp)) != fabs(__pyx_v_temp));
     if (!__pyx_t_1) break;
 
-    /* "tests/cynum.pyx":724
+    /* "tests/cynum.pyx":725
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
  *     while (ceil(fabs(temp))!=fabs(temp)):
  *         postincrement(res.exp)             # <<<<<<<<<<<<<<
@@ -10920,7 +10893,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
     (void)((__pyx_v_res.exp++));
 
-    /* "tests/cynum.pyx":725
+    /* "tests/cynum.pyx":726
  *     while (ceil(fabs(temp))!=fabs(temp)):
  *         postincrement(res.exp)
  *         temp = temp*10             # <<<<<<<<<<<<<<
@@ -10930,7 +10903,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
     __pyx_v_temp = (__pyx_v_temp * 10.0);
   }
 
-  /* "tests/cynum.pyx":726
+  /* "tests/cynum.pyx":727
  *         postincrement(res.exp)
  *         temp = temp*10
  *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))             # <<<<<<<<<<<<<<
@@ -10939,7 +10912,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
   __pyx_v_large_lim = ((iterable_t)floor((log10(fabs(__pyx_v_temp)) + 1.0)));
 
-  /* "tests/cynum.pyx":727
+  /* "tests/cynum.pyx":728
  *         temp = temp*10
  *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
  *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
@@ -10949,7 +10922,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
   __pyx_t_1 = (__pyx_v_large_lim > N_DIGITS);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":728
+    /* "tests/cynum.pyx":729
  *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
  *     if (large_lim > N_DIGITS):
  *         large_lim = N_DIGITS_I             # <<<<<<<<<<<<<<
@@ -10958,7 +10931,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
     __pyx_v_large_lim = N_DIGITS_I;
 
-    /* "tests/cynum.pyx":727
+    /* "tests/cynum.pyx":728
  *         temp = temp*10
  *     large_lim = (<iterable_t>floor(log10(fabs(temp))+1))
  *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
@@ -10967,7 +10940,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
   }
 
-  /* "tests/cynum.pyx":730
+  /* "tests/cynum.pyx":731
  *         large_lim = N_DIGITS_I
  *     # test: 8204.172
  *     for i in range(large_lim):             # <<<<<<<<<<<<<<
@@ -10979,7 +10952,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
   for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
     __pyx_v_i = __pyx_t_4;
 
-    /* "tests/cynum.pyx":731
+    /* "tests/cynum.pyx":732
  *     # test: 8204.172
  *     for i in range(large_lim):
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)             # <<<<<<<<<<<<<<
@@ -10988,7 +10961,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
  */
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((char)fmod(__pyx_v_temp, 10.0));
 
-    /* "tests/cynum.pyx":732
+    /* "tests/cynum.pyx":733
  *     for i in range(large_lim):
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
  *         temp = (temp*0.1)             # <<<<<<<<<<<<<<
@@ -10998,7 +10971,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
     __pyx_v_temp = (__pyx_v_temp * 0.1);
   }
 
-  /* "tests/cynum.pyx":733
+  /* "tests/cynum.pyx":734
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
  *         temp = (temp*0.1)
  *     return res             # <<<<<<<<<<<<<<
@@ -11008,7 +10981,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":716
+  /* "tests/cynum.pyx":717
  *     return res
  * 
  * cdef _cydecimal _norm_decimal_from_double_cy(const double first) noexcept nogil:  # use if want to normalize to (x>=0)&&(x<=0) (no precision part)             # <<<<<<<<<<<<<<
@@ -11021,7 +10994,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__norm_decimal_from_double_cy(doub
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":735
+/* "tests/cynum.pyx":736
  *     return res
  * 
  * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)             # <<<<<<<<<<<<<<
@@ -11042,7 +11015,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   unsigned char __pyx_t_3;
   iterable_t __pyx_t_4;
 
-  /* "tests/cynum.pyx":736
+  /* "tests/cynum.pyx":737
  * 
  * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
  *     cdef double large = floor(first), small, temp             # <<<<<<<<<<<<<<
@@ -11051,7 +11024,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_large = floor(__pyx_v_first);
 
-  /* "tests/cynum.pyx":737
+  /* "tests/cynum.pyx":738
  * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)
  *     cdef double large = floor(first), small, temp
  *     small = first-large  # decimal portion             # <<<<<<<<<<<<<<
@@ -11060,7 +11033,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_small = (__pyx_v_first - __pyx_v_large);
 
-  /* "tests/cynum.pyx":738
+  /* "tests/cynum.pyx":739
  *     cdef double large = floor(first), small, temp
  *     small = first-large  # decimal portion
  *     temp = large             # <<<<<<<<<<<<<<
@@ -11069,7 +11042,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_temp = __pyx_v_large;
 
-  /* "tests/cynum.pyx":740
+  /* "tests/cynum.pyx":741
  *     temp = large
  *     cdef iterable_t i
  *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))             # <<<<<<<<<<<<<<
@@ -11078,7 +11051,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_large_lim = ((unsigned char)floor((log10(fabs(__pyx_v_large)) + 1.0)));
 
-  /* "tests/cynum.pyx":741
+  /* "tests/cynum.pyx":742
  *     cdef iterable_t i
  *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
  *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
@@ -11088,7 +11061,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   __pyx_t_1 = (__pyx_v_large_lim > N_DIGITS);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":742
+    /* "tests/cynum.pyx":743
  *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
  *     if (large_lim > N_DIGITS):
  *         large_lim = N_DIGITS_I             # <<<<<<<<<<<<<<
@@ -11097,7 +11070,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
     __pyx_v_large_lim = N_DIGITS_I;
 
-    /* "tests/cynum.pyx":741
+    /* "tests/cynum.pyx":742
  *     cdef iterable_t i
  *     cdef unsigned char large_lim = (<unsigned char>floor(log10(fabs(large))+1))
  *     if (large_lim > N_DIGITS):             # <<<<<<<<<<<<<<
@@ -11106,7 +11079,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   }
 
-  /* "tests/cynum.pyx":744
+  /* "tests/cynum.pyx":745
  *         large_lim = N_DIGITS_I
  *     cdef _cydecimal res
  *     res.exp = 0             # <<<<<<<<<<<<<<
@@ -11115,7 +11088,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_res.exp = 0;
 
-  /* "tests/cynum.pyx":745
+  /* "tests/cynum.pyx":746
  *     cdef _cydecimal res
  *     res.exp = 0
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)             # <<<<<<<<<<<<<<
@@ -11124,7 +11097,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   (void)(memcpy((&__pyx_v_res.digits), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), MAX_LENGTH));
 
-  /* "tests/cynum.pyx":747
+  /* "tests/cynum.pyx":748
  *     memcpy(&res.digits, <char*>calloc(MAX_LENGTH, sizeof(char)), MAX_LENGTH)
  *     # test: 8204.172
  *     for i in range(large_lim):             # <<<<<<<<<<<<<<
@@ -11136,7 +11109,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
     __pyx_v_i = __pyx_t_4;
 
-    /* "tests/cynum.pyx":748
+    /* "tests/cynum.pyx":749
  *     # test: 8204.172
  *     for i in range(large_lim):
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)             # <<<<<<<<<<<<<<
@@ -11145,7 +11118,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
     (__pyx_v_res.digits[(N_DIGITS_I - __pyx_v_i)]) = ((char)fmod(__pyx_v_temp, 10.0));
 
-    /* "tests/cynum.pyx":749
+    /* "tests/cynum.pyx":750
  *     for i in range(large_lim):
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
  *         temp = (temp*0.1)             # <<<<<<<<<<<<<<
@@ -11155,7 +11128,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
     __pyx_v_temp = (__pyx_v_temp * 0.1);
   }
 
-  /* "tests/cynum.pyx":750
+  /* "tests/cynum.pyx":751
  *         res.digits[N_DIGITS_I-i] = <char>fmod(temp, 10)
  *         temp = (temp*0.1)
  *     temp = small             # <<<<<<<<<<<<<<
@@ -11164,7 +11137,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_temp = __pyx_v_small;
 
-  /* "tests/cynum.pyx":751
+  /* "tests/cynum.pyx":752
  *         temp = (temp*0.1)
  *     temp = small
  *     i = N_PRECISION             # <<<<<<<<<<<<<<
@@ -11173,7 +11146,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
   __pyx_v_i = N_PRECISION;
 
-  /* "tests/cynum.pyx":752
+  /* "tests/cynum.pyx":753
  *     temp = small
  *     i = N_PRECISION
  *     while (fabs(temp)!=ceil(fabs(temp))):             # <<<<<<<<<<<<<<
@@ -11184,7 +11157,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
     __pyx_t_1 = (fabs(__pyx_v_temp) != ceil(fabs(__pyx_v_temp)));
     if (!__pyx_t_1) break;
 
-    /* "tests/cynum.pyx":753
+    /* "tests/cynum.pyx":754
  *     i = N_PRECISION
  *     while (fabs(temp)!=ceil(fabs(temp))):
  *         temp = (temp*10)             # <<<<<<<<<<<<<<
@@ -11193,7 +11166,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
     __pyx_v_temp = (__pyx_v_temp * 10.0);
 
-    /* "tests/cynum.pyx":754
+    /* "tests/cynum.pyx":755
  *     while (fabs(temp)!=ceil(fabs(temp))):
  *         temp = (temp*10)
  *         res.digits[i] = <char>fmod(floor(temp), 10)             # <<<<<<<<<<<<<<
@@ -11202,7 +11175,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
     (__pyx_v_res.digits[__pyx_v_i]) = ((char)fmod(floor(__pyx_v_temp), 10.0));
 
-    /* "tests/cynum.pyx":755
+    /* "tests/cynum.pyx":756
  *         temp = (temp*10)
  *         res.digits[i] = <char>fmod(floor(temp), 10)
  *         postincrement(i)             # <<<<<<<<<<<<<<
@@ -11211,7 +11184,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
     (void)((__pyx_v_i++));
 
-    /* "tests/cynum.pyx":756
+    /* "tests/cynum.pyx":757
  *         res.digits[i] = <char>fmod(floor(temp), 10)
  *         postincrement(i)
  *         if i > MAX_INDICE:             # <<<<<<<<<<<<<<
@@ -11221,7 +11194,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
     __pyx_t_1 = (__pyx_v_i > MAX_INDICE);
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":757
+      /* "tests/cynum.pyx":758
  *         postincrement(i)
  *         if i > MAX_INDICE:
  *             break             # <<<<<<<<<<<<<<
@@ -11230,7 +11203,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
  */
       goto __pyx_L7_break;
 
-      /* "tests/cynum.pyx":756
+      /* "tests/cynum.pyx":757
  *         res.digits[i] = <char>fmod(floor(temp), 10)
  *         postincrement(i)
  *         if i > MAX_INDICE:             # <<<<<<<<<<<<<<
@@ -11241,7 +11214,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   }
   __pyx_L7_break:;
 
-  /* "tests/cynum.pyx":758
+  /* "tests/cynum.pyx":759
  *         if i > MAX_INDICE:
  *             break
  *     return res             # <<<<<<<<<<<<<<
@@ -11251,7 +11224,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   __pyx_r = __pyx_v_res;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":735
+  /* "tests/cynum.pyx":736
  *     return res
  * 
  * cdef _cydecimal _decimal_from_double_cy(const double first) noexcept nogil:  # use if there is enough PRECISION storage (will be truncated if no)             # <<<<<<<<<<<<<<
@@ -11264,7 +11237,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__decimal_from_double_cy(double co
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":760
+/* "tests/cynum.pyx":761
  *     return res
  * 
  * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -11284,7 +11257,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   iterable_t __pyx_t_2;
   int __pyx_t_3;
 
-  /* "tests/cynum.pyx":762
+  /* "tests/cynum.pyx":763
  * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
  *     cdef iterable_t i, x
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -11294,7 +11267,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   __pyx_t_1 = (__pyx_v_first.exp > __pyx_v_second.exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":763
+    /* "tests/cynum.pyx":764
  *     cdef iterable_t i, x
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         x = first.exp-second.exp             # <<<<<<<<<<<<<<
@@ -11303,7 +11276,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     __pyx_v_x = (__pyx_v_first.exp - __pyx_v_second.exp);
 
-    /* "tests/cynum.pyx":764
+    /* "tests/cynum.pyx":765
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         x = first.exp-second.exp
  *         _left_shift_digits(&second, x)  # bring up value             # <<<<<<<<<<<<<<
@@ -11312,7 +11285,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     _left_shift_digits((&__pyx_v_second), __pyx_v_x);
 
-    /* "tests/cynum.pyx":762
+    /* "tests/cynum.pyx":763
  * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
  *     cdef iterable_t i, x
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -11322,7 +11295,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pyx":765
+  /* "tests/cynum.pyx":766
  *         x = first.exp-second.exp
  *         _left_shift_digits(&second, x)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -11332,7 +11305,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   __pyx_t_1 = (__pyx_v_second.exp > __pyx_v_first.exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":766
+    /* "tests/cynum.pyx":767
  *         _left_shift_digits(&second, x)  # bring up value
  *     elif second.exp > first.exp:
  *         x = second.exp-first.exp             # <<<<<<<<<<<<<<
@@ -11341,7 +11314,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     __pyx_v_x = (__pyx_v_second.exp - __pyx_v_first.exp);
 
-    /* "tests/cynum.pyx":767
+    /* "tests/cynum.pyx":768
  *     elif second.exp > first.exp:
  *         x = second.exp-first.exp
  *         _left_shift_digits(&first, x)  # bring up value             # <<<<<<<<<<<<<<
@@ -11350,7 +11323,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     _left_shift_digits((&__pyx_v_first), __pyx_v_x);
 
-    /* "tests/cynum.pyx":765
+    /* "tests/cynum.pyx":766
  *         x = first.exp-second.exp
  *         _left_shift_digits(&second, x)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -11360,7 +11333,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pyx":768
+  /* "tests/cynum.pyx":769
  *         x = second.exp-first.exp
  *         _left_shift_digits(&first, x)  # bring up value
  *     cdef char overflow = 0, res = 0, z, y             # <<<<<<<<<<<<<<
@@ -11370,7 +11343,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   __pyx_v_overflow = 0;
   __pyx_v_res = 0;
 
-  /* "tests/cynum.pyx":769
+  /* "tests/cynum.pyx":770
  *         _left_shift_digits(&first, x)  # bring up value
  *     cdef char overflow = 0, res = 0, z, y
  *     for i in range(MAX_INDICE, -1, -1):             # <<<<<<<<<<<<<<
@@ -11380,7 +11353,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   for (__pyx_t_2 = MAX_INDICE + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
     __pyx_v_i = __pyx_t_2;
 
-    /* "tests/cynum.pyx":770
+    /* "tests/cynum.pyx":771
  *     cdef char overflow = 0, res = 0, z, y
  *     for i in range(MAX_INDICE, -1, -1):
  *         y = second.digits[i]             # <<<<<<<<<<<<<<
@@ -11389,7 +11362,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     __pyx_v_y = (__pyx_v_second.digits[__pyx_v_i]);
 
-    /* "tests/cynum.pyx":771
+    /* "tests/cynum.pyx":772
  *     for i in range(MAX_INDICE, -1, -1):
  *         y = second.digits[i]
  *         z = first.digits[i]             # <<<<<<<<<<<<<<
@@ -11398,7 +11371,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
     __pyx_v_z = (__pyx_v_first.digits[__pyx_v_i]);
 
-    /* "tests/cynum.pyx":772
+    /* "tests/cynum.pyx":773
  *         y = second.digits[i]
  *         z = first.digits[i]
  *         if ((overflow!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
@@ -11422,7 +11395,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
     __pyx_L7_bool_binop_done:;
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":773
+      /* "tests/cynum.pyx":774
  *         z = first.digits[i]
  *         if ((overflow!=0) or (x!=0 or y!=0)):
  *             res = z + y + overflow             # <<<<<<<<<<<<<<
@@ -11431,7 +11404,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
       __pyx_v_res = ((__pyx_v_z + __pyx_v_y) + __pyx_v_overflow);
 
-      /* "tests/cynum.pyx":774
+      /* "tests/cynum.pyx":775
  *         if ((overflow!=0) or (x!=0 or y!=0)):
  *             res = z + y + overflow
  *             overflow = res             # <<<<<<<<<<<<<<
@@ -11440,7 +11413,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
       __pyx_v_overflow = __pyx_v_res;
 
-      /* "tests/cynum.pyx":775
+      /* "tests/cynum.pyx":776
  *             res = z + y + overflow
  *             overflow = res
  *             if overflow > 9:             # <<<<<<<<<<<<<<
@@ -11450,7 +11423,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
       __pyx_t_1 = (__pyx_v_overflow > 9);
       if (__pyx_t_1) {
 
-        /* "tests/cynum.pyx":776
+        /* "tests/cynum.pyx":777
  *             overflow = res
  *             if overflow > 9:
  *                 overflow = overflow%10             # <<<<<<<<<<<<<<
@@ -11459,7 +11432,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
         __pyx_v_overflow = (__pyx_v_overflow % 10);
 
-        /* "tests/cynum.pyx":775
+        /* "tests/cynum.pyx":776
  *             res = z + y + overflow
  *             overflow = res
  *             if overflow > 9:             # <<<<<<<<<<<<<<
@@ -11468,7 +11441,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
       }
 
-      /* "tests/cynum.pyx":777
+      /* "tests/cynum.pyx":778
  *             if overflow > 9:
  *                 overflow = overflow%10
  *             first.digits[i] = overflow  # get the last digit             # <<<<<<<<<<<<<<
@@ -11477,7 +11450,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
       (__pyx_v_first.digits[__pyx_v_i]) = __pyx_v_overflow;
 
-      /* "tests/cynum.pyx":778
+      /* "tests/cynum.pyx":779
  *                 overflow = overflow%10
  *             first.digits[i] = overflow  # get the last digit
  *             overflow = <char>((res-overflow)*0.1)             # <<<<<<<<<<<<<<
@@ -11486,7 +11459,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
  */
       __pyx_v_overflow = ((char)((__pyx_v_res - __pyx_v_overflow) * 0.1));
 
-      /* "tests/cynum.pyx":772
+      /* "tests/cynum.pyx":773
  *         y = second.digits[i]
  *         z = first.digits[i]
  *         if ((overflow!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
@@ -11496,7 +11469,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
     }
   }
 
-  /* "tests/cynum.pyx":779
+  /* "tests/cynum.pyx":780
  *             first.digits[i] = overflow  # get the last digit
  *             overflow = <char>((res-overflow)*0.1)
  *     return first             # <<<<<<<<<<<<<<
@@ -11506,7 +11479,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   __pyx_r = __pyx_v_first;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":760
+  /* "tests/cynum.pyx":761
  *     return res
  * 
  * cdef _cydecimal _add_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -11519,7 +11492,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__add_decimals_cy(struct _cydecima
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":781
+/* "tests/cynum.pyx":782
  *     return first
  * 
  * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -11542,7 +11515,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   iterable_t __pyx_t_2;
   int __pyx_t_3;
 
-  /* "tests/cynum.pyx":782
+  /* "tests/cynum.pyx":783
  * 
  * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
  *     cdef iterable_t i, index = 0, t             # <<<<<<<<<<<<<<
@@ -11551,7 +11524,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
   __pyx_v_index = 0;
 
-  /* "tests/cynum.pyx":783
+  /* "tests/cynum.pyx":784
  * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:
  *     cdef iterable_t i, index = 0, t
  *     cdef char x, y, res=0             # <<<<<<<<<<<<<<
@@ -11560,7 +11533,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
   __pyx_v_res = 0;
 
-  /* "tests/cynum.pyx":784
+  /* "tests/cynum.pyx":785
  *     cdef iterable_t i, index = 0, t
  *     cdef char x, y, res=0
  *     cdef bool small = False, negate=False             # <<<<<<<<<<<<<<
@@ -11570,7 +11543,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_v_small = 0;
   __pyx_v_negate = 0;
 
-  /* "tests/cynum.pyx":787
+  /* "tests/cynum.pyx":788
  *     cdef _cydecimal temp
  *     cdef char[MAX_LENGTH] data
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -11580,7 +11553,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_t_1 = (__pyx_v_first.exp > __pyx_v_second.exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":788
+    /* "tests/cynum.pyx":789
  *     cdef char[MAX_LENGTH] data
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -11589,7 +11562,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     _left_shift_digits((&__pyx_v_second), (__pyx_v_first.exp - __pyx_v_second.exp));
 
-    /* "tests/cynum.pyx":787
+    /* "tests/cynum.pyx":788
  *     cdef _cydecimal temp
  *     cdef char[MAX_LENGTH] data
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY             # <<<<<<<<<<<<<<
@@ -11599,7 +11572,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pyx":789
+  /* "tests/cynum.pyx":790
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -11609,7 +11582,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_t_1 = (__pyx_v_second.exp > __pyx_v_first.exp);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":790
+    /* "tests/cynum.pyx":791
  *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:
  *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value             # <<<<<<<<<<<<<<
@@ -11618,7 +11591,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     _left_shift_digits((&__pyx_v_first), (__pyx_v_second.exp - __pyx_v_first.exp));
 
-    /* "tests/cynum.pyx":791
+    /* "tests/cynum.pyx":792
  *     elif second.exp > first.exp:
  *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
  *         temp = second             # <<<<<<<<<<<<<<
@@ -11627,7 +11600,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_temp = __pyx_v_second;
 
-    /* "tests/cynum.pyx":792
+    /* "tests/cynum.pyx":793
  *         _left_shift_digits(&first, second.exp-first.exp)  # bring up value
  *         temp = second
  *         second = first             # <<<<<<<<<<<<<<
@@ -11636,7 +11609,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_second = __pyx_v_first;
 
-    /* "tests/cynum.pyx":793
+    /* "tests/cynum.pyx":794
  *         temp = second
  *         second = first
  *         first = temp # swap             # <<<<<<<<<<<<<<
@@ -11645,7 +11618,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_first = __pyx_v_temp;
 
-    /* "tests/cynum.pyx":794
+    /* "tests/cynum.pyx":795
  *         second = first
  *         first = temp # swap
  *         negate = True             # <<<<<<<<<<<<<<
@@ -11654,7 +11627,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_negate = 1;
 
-    /* "tests/cynum.pyx":789
+    /* "tests/cynum.pyx":790
  *     if first.exp > second.exp:  # bring up second, without _normalize as we have to normalize after precision and leading zero normalization ANYWAY
  *         _left_shift_digits(&second, first.exp-second.exp)  # bring up value
  *     elif second.exp > first.exp:             # <<<<<<<<<<<<<<
@@ -11664,7 +11637,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pyx":795
+  /* "tests/cynum.pyx":796
  *         first = temp # swap
  *         negate = True
  *     elif _less_than_digits(&first, &second):             # <<<<<<<<<<<<<<
@@ -11674,7 +11647,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_t_1 = (_less_than_digits((&__pyx_v_first), (&__pyx_v_second)) != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":796
+    /* "tests/cynum.pyx":797
  *         negate = True
  *     elif _less_than_digits(&first, &second):
  *         temp = second             # <<<<<<<<<<<<<<
@@ -11683,7 +11656,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_temp = __pyx_v_second;
 
-    /* "tests/cynum.pyx":797
+    /* "tests/cynum.pyx":798
  *     elif _less_than_digits(&first, &second):
  *         temp = second
  *         second = first             # <<<<<<<<<<<<<<
@@ -11692,7 +11665,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_second = __pyx_v_first;
 
-    /* "tests/cynum.pyx":798
+    /* "tests/cynum.pyx":799
  *         temp = second
  *         second = first
  *         first = temp # swap             # <<<<<<<<<<<<<<
@@ -11701,7 +11674,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_first = __pyx_v_temp;
 
-    /* "tests/cynum.pyx":799
+    /* "tests/cynum.pyx":800
  *         second = first
  *         first = temp # swap
  *         negate = True             # <<<<<<<<<<<<<<
@@ -11710,7 +11683,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_negate = 1;
 
-    /* "tests/cynum.pyx":795
+    /* "tests/cynum.pyx":796
  *         first = temp # swap
  *         negate = True
  *     elif _less_than_digits(&first, &second):             # <<<<<<<<<<<<<<
@@ -11720,7 +11693,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     goto __pyx_L3;
   }
 
-  /* "tests/cynum.pyx":800
+  /* "tests/cynum.pyx":801
  *         first = temp # swap
  *         negate = True
  *     elif _eq_digits(&first, &second):  # is this really worth it?             # <<<<<<<<<<<<<<
@@ -11730,7 +11703,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_t_1 = (_eq_digits((&__pyx_v_first), (&__pyx_v_second)) != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":801
+    /* "tests/cynum.pyx":802
  *         negate = True
  *     elif _eq_digits(&first, &second):  # is this really worth it?
  *         data = <char*>calloc(MAX_LENGTH, sizeof(char))             # <<<<<<<<<<<<<<
@@ -11739,7 +11712,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     memcpy(&(__pyx_v_data[0]), ((char *)calloc(MAX_LENGTH, (sizeof(char)))), sizeof(__pyx_v_data[0]) * (MAX_LENGTH - 0));
 
-    /* "tests/cynum.pyx":802
+    /* "tests/cynum.pyx":803
  *     elif _eq_digits(&first, &second):  # is this really worth it?
  *         data = <char*>calloc(MAX_LENGTH, sizeof(char))
  *         return _decimal(&data, 0, False)             # <<<<<<<<<<<<<<
@@ -11749,7 +11722,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     __pyx_r = _decimal((&__pyx_v_data), 0, 0);
     goto __pyx_L0;
 
-    /* "tests/cynum.pyx":800
+    /* "tests/cynum.pyx":801
  *         first = temp # swap
  *         negate = True
  *     elif _eq_digits(&first, &second):  # is this really worth it?             # <<<<<<<<<<<<<<
@@ -11759,7 +11732,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   }
   __pyx_L3:;
 
-  /* "tests/cynum.pyx":804
+  /* "tests/cynum.pyx":805
  *         return _decimal(&data, 0, False)
  *         free(data)
  *     for i in range(MAX_INDICE, -1, -1):             # <<<<<<<<<<<<<<
@@ -11769,7 +11742,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   for (__pyx_t_2 = MAX_INDICE + 1; __pyx_t_2 > -1 + 1; ) { __pyx_t_2-=1;
     __pyx_v_i = __pyx_t_2;
 
-    /* "tests/cynum.pyx":805
+    /* "tests/cynum.pyx":806
  *         free(data)
  *     for i in range(MAX_INDICE, -1, -1):
  *         y = second.digits[i]             # <<<<<<<<<<<<<<
@@ -11778,7 +11751,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_y = (__pyx_v_second.digits[__pyx_v_i]);
 
-    /* "tests/cynum.pyx":806
+    /* "tests/cynum.pyx":807
  *     for i in range(MAX_INDICE, -1, -1):
  *         y = second.digits[i]
  *         x = first.digits[i]             # <<<<<<<<<<<<<<
@@ -11787,7 +11760,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     __pyx_v_x = (__pyx_v_first.digits[__pyx_v_i]);
 
-    /* "tests/cynum.pyx":807
+    /* "tests/cynum.pyx":808
  *         y = second.digits[i]
  *         x = first.digits[i]
  *         if ((res!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
@@ -11811,7 +11784,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     __pyx_L7_bool_binop_done:;
     if (__pyx_t_1) {
 
-      /* "tests/cynum.pyx":808
+      /* "tests/cynum.pyx":809
  *         x = first.digits[i]
  *         if ((res!=0) or (x!=0 or y!=0)):
  *             x = x - res             # <<<<<<<<<<<<<<
@@ -11820,7 +11793,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       __pyx_v_x = (__pyx_v_x - __pyx_v_res);
 
-      /* "tests/cynum.pyx":811
+      /* "tests/cynum.pyx":812
  *             y = y
  * 
  *             small = x < y             # <<<<<<<<<<<<<<
@@ -11829,7 +11802,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       __pyx_v_small = (__pyx_v_x < __pyx_v_y);
 
-      /* "tests/cynum.pyx":812
+      /* "tests/cynum.pyx":813
  * 
  *             small = x < y
  *             if small:x+=10             # <<<<<<<<<<<<<<
@@ -11841,7 +11814,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
         __pyx_v_x = (__pyx_v_x + 10);
       }
 
-      /* "tests/cynum.pyx":813
+      /* "tests/cynum.pyx":814
  *             small = x < y
  *             if small:x+=10
  *             res = (x) - y             # <<<<<<<<<<<<<<
@@ -11850,7 +11823,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       __pyx_v_res = (__pyx_v_x - __pyx_v_y);
 
-      /* "tests/cynum.pyx":814
+      /* "tests/cynum.pyx":815
  *             if small:x+=10
  *             res = (x) - y
  *             if res > 9:             # <<<<<<<<<<<<<<
@@ -11860,7 +11833,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
       __pyx_t_1 = (__pyx_v_res > 9);
       if (__pyx_t_1) {
 
-        /* "tests/cynum.pyx":815
+        /* "tests/cynum.pyx":816
  *             res = (x) - y
  *             if res > 9:
  *                 res = ((res)%10)             # <<<<<<<<<<<<<<
@@ -11869,7 +11842,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
         __pyx_v_res = (__pyx_v_res % 10);
 
-        /* "tests/cynum.pyx":814
+        /* "tests/cynum.pyx":815
  *             if small:x+=10
  *             res = (x) - y
  *             if res > 9:             # <<<<<<<<<<<<<<
@@ -11879,7 +11852,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
         goto __pyx_L11;
       }
 
-      /* "tests/cynum.pyx":817
+      /* "tests/cynum.pyx":818
  *                 res = ((res)%10)
  *             else:
  *                 res=res             # <<<<<<<<<<<<<<
@@ -11890,7 +11863,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
       }
       __pyx_L11:;
 
-      /* "tests/cynum.pyx":818
+      /* "tests/cynum.pyx":819
  *             else:
  *                 res=res
  *             if negate:             # <<<<<<<<<<<<<<
@@ -11900,7 +11873,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
       __pyx_t_1 = (__pyx_v_negate != 0);
       if (__pyx_t_1) {
 
-        /* "tests/cynum.pyx":819
+        /* "tests/cynum.pyx":820
  *                 res=res
  *             if negate:
  *                 if res!=0:             # <<<<<<<<<<<<<<
@@ -11910,7 +11883,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
         __pyx_t_1 = (__pyx_v_res != 0);
         if (__pyx_t_1) {
 
-          /* "tests/cynum.pyx":820
+          /* "tests/cynum.pyx":821
  *             if negate:
  *                 if res!=0:
  *                     index=i             # <<<<<<<<<<<<<<
@@ -11919,7 +11892,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
           __pyx_v_index = __pyx_v_i;
 
-          /* "tests/cynum.pyx":819
+          /* "tests/cynum.pyx":820
  *                 res=res
  *             if negate:
  *                 if res!=0:             # <<<<<<<<<<<<<<
@@ -11928,7 +11901,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
         }
 
-        /* "tests/cynum.pyx":818
+        /* "tests/cynum.pyx":819
  *             else:
  *                 res=res
  *             if negate:             # <<<<<<<<<<<<<<
@@ -11937,7 +11910,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       }
 
-      /* "tests/cynum.pyx":821
+      /* "tests/cynum.pyx":822
  *                 if res!=0:
  *                     index=i
  *             first.digits[i] = res  # always positive             # <<<<<<<<<<<<<<
@@ -11946,7 +11919,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       (__pyx_v_first.digits[__pyx_v_i]) = __pyx_v_res;
 
-      /* "tests/cynum.pyx":823
+      /* "tests/cynum.pyx":824
  *             first.digits[i] = res  # always positive
  * 
  *             res = small             # <<<<<<<<<<<<<<
@@ -11955,7 +11928,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
       __pyx_v_res = __pyx_v_small;
 
-      /* "tests/cynum.pyx":807
+      /* "tests/cynum.pyx":808
  *         y = second.digits[i]
  *         x = first.digits[i]
  *         if ((res!=0) or (x!=0 or y!=0)):             # <<<<<<<<<<<<<<
@@ -11965,7 +11938,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
     }
   }
 
-  /* "tests/cynum.pyx":825
+  /* "tests/cynum.pyx":826
  *             res = small
  *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
  *     if negate:             # <<<<<<<<<<<<<<
@@ -11975,7 +11948,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_t_1 = (__pyx_v_negate != 0);
   if (__pyx_t_1) {
 
-    /* "tests/cynum.pyx":826
+    /* "tests/cynum.pyx":827
  *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
  *     if negate:
  *         first.digits[index] = -first.digits[index]             # <<<<<<<<<<<<<<
@@ -11984,7 +11957,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
     (__pyx_v_first.digits[__pyx_v_index]) = (-(__pyx_v_first.digits[__pyx_v_index]));
 
-    /* "tests/cynum.pyx":825
+    /* "tests/cynum.pyx":826
  *             res = small
  *             #print(overflow, 'overflow', res, small, (<char>small), <char>((res-overflow)*0.1), x, y)
  *     if negate:             # <<<<<<<<<<<<<<
@@ -11993,7 +11966,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
  */
   }
 
-  /* "tests/cynum.pyx":827
+  /* "tests/cynum.pyx":828
  *     if negate:
  *         first.digits[index] = -first.digits[index]
  *     return first             # <<<<<<<<<<<<<<
@@ -12003,7 +11976,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   __pyx_r = __pyx_v_first;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":781
+  /* "tests/cynum.pyx":782
  *     return first
  * 
  * cdef _cydecimal _subtract_decimals_cy(_cydecimal first, _cydecimal second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -12016,7 +11989,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__subtract_decimals_cy(struct _cyd
   return __pyx_r;
 }
 
-/* "tests/cynum.pyx":829
+/* "tests/cynum.pyx":830
  *     return first
  * 
  * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -12041,7 +12014,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
   iterable_t __pyx_t_5;
   iterable_t __pyx_t_6;
 
-  /* "tests/cynum.pyx":830
+  /* "tests/cynum.pyx":831
  * 
  * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
  *     cdef exponent_t i, j, place_val=0             # <<<<<<<<<<<<<<
@@ -12050,7 +12023,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   __pyx_v_place_val = 0;
 
-  /* "tests/cynum.pyx":831
+  /* "tests/cynum.pyx":832
  * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:
  *     cdef exponent_t i, j, place_val=0
  *     cdef bool negate = first.negative ^ second.negative  # 492.665453712             # <<<<<<<<<<<<<<
@@ -12059,7 +12032,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   __pyx_v_negate = (__pyx_v_first->negative ^ __pyx_v_second->negative);
 
-  /* "tests/cynum.pyx":833
+  /* "tests/cynum.pyx":834
  *     cdef bool negate = first.negative ^ second.negative  # 492.665453712
  *     cdef unsigned char overflow, x, y
  *     cdef _cydecimal result = _empty_decimal()             # <<<<<<<<<<<<<<
@@ -12068,7 +12041,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   __pyx_v_result = _empty_decimal();
 
-  /* "tests/cynum.pyx":834
+  /* "tests/cynum.pyx":835
  *     cdef unsigned char overflow, x, y
  *     cdef _cydecimal result = _empty_decimal()
  *     _normalize_digits(first, True)             # <<<<<<<<<<<<<<
@@ -12077,7 +12050,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   _normalize_digits(__pyx_v_first, 1);
 
-  /* "tests/cynum.pyx":835
+  /* "tests/cynum.pyx":836
  *     cdef _cydecimal result = _empty_decimal()
  *     _normalize_digits(first, True)
  *     _normalize_digits(second, True)             # <<<<<<<<<<<<<<
@@ -12086,7 +12059,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   _normalize_digits(__pyx_v_second, 1);
 
-  /* "tests/cynum.pyx":836
+  /* "tests/cynum.pyx":837
  *     _normalize_digits(first, True)
  *     _normalize_digits(second, True)
  *     result.exp = first.exp + second.exp             # <<<<<<<<<<<<<<
@@ -12095,7 +12068,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   __pyx_v_result.exp = (__pyx_v_first->exp + __pyx_v_second->exp);
 
-  /* "tests/cynum.pyx":837
+  /* "tests/cynum.pyx":838
  *     _normalize_digits(second, True)
  *     result.exp = first.exp + second.exp
  *     result.negative = negate             # <<<<<<<<<<<<<<
@@ -12104,7 +12077,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   __pyx_v_result.negative = __pyx_v_negate;
 
-  /* "tests/cynum.pyx":839
+  /* "tests/cynum.pyx":840
  *     result.negative = negate
  * 
  *     for i in range(N_DIGITS_I, -1, -1):             # <<<<<<<<<<<<<<
@@ -12114,7 +12087,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
   for (__pyx_t_1 = N_DIGITS_I; __pyx_t_1 > -1; __pyx_t_1-=1) {
     __pyx_v_i = __pyx_t_1;
 
-    /* "tests/cynum.pyx":840
+    /* "tests/cynum.pyx":841
  * 
  *     for i in range(N_DIGITS_I, -1, -1):
  *         overflow = 0             # <<<<<<<<<<<<<<
@@ -12123,7 +12096,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
     __pyx_v_overflow = 0;
 
-    /* "tests/cynum.pyx":841
+    /* "tests/cynum.pyx":842
  *     for i in range(N_DIGITS_I, -1, -1):
  *         overflow = 0
  *         x = first.digits[i]             # <<<<<<<<<<<<<<
@@ -12132,7 +12105,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
     __pyx_v_x = (__pyx_v_first->digits[__pyx_v_i]);
 
-    /* "tests/cynum.pyx":842
+    /* "tests/cynum.pyx":843
  *         overflow = 0
  *         x = first.digits[i]
  *         if first.negative:             # <<<<<<<<<<<<<<
@@ -12142,7 +12115,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
     __pyx_t_2 = (__pyx_v_first->negative != 0);
     if (__pyx_t_2) {
 
-      /* "tests/cynum.pyx":843
+      /* "tests/cynum.pyx":844
  *         x = first.digits[i]
  *         if first.negative:
  *             if x > 9:             # <<<<<<<<<<<<<<
@@ -12152,7 +12125,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
       __pyx_t_2 = (__pyx_v_x > 9);
       if (__pyx_t_2) {
 
-        /* "tests/cynum.pyx":844
+        /* "tests/cynum.pyx":845
  *         if first.negative:
  *             if x > 9:
  *                 x = -x             # <<<<<<<<<<<<<<
@@ -12161,7 +12134,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         __pyx_v_x = (-__pyx_v_x);
 
-        /* "tests/cynum.pyx":843
+        /* "tests/cynum.pyx":844
  *         x = first.digits[i]
  *         if first.negative:
  *             if x > 9:             # <<<<<<<<<<<<<<
@@ -12170,7 +12143,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
       }
 
-      /* "tests/cynum.pyx":842
+      /* "tests/cynum.pyx":843
  *         overflow = 0
  *         x = first.digits[i]
  *         if first.negative:             # <<<<<<<<<<<<<<
@@ -12179,7 +12152,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
     }
 
-    /* "tests/cynum.pyx":846
+    /* "tests/cynum.pyx":847
  *                 x = -x
  * 
  *         if x != 0:             # <<<<<<<<<<<<<<
@@ -12189,7 +12162,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
     __pyx_t_2 = (__pyx_v_x != 0);
     if (__pyx_t_2) {
 
-      /* "tests/cynum.pyx":847
+      /* "tests/cynum.pyx":848
  * 
  *         if x != 0:
  *             for j in range(N_DIGITS_I, -1, -1):             # <<<<<<<<<<<<<<
@@ -12199,7 +12172,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
       for (__pyx_t_3 = N_DIGITS_I; __pyx_t_3 > -1; __pyx_t_3-=1) {
         __pyx_v_j = __pyx_t_3;
 
-        /* "tests/cynum.pyx":848
+        /* "tests/cynum.pyx":849
  *         if x != 0:
  *             for j in range(N_DIGITS_I, -1, -1):
  *                 y = second.digits[j]             # <<<<<<<<<<<<<<
@@ -12208,7 +12181,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         __pyx_v_y = (__pyx_v_second->digits[__pyx_v_j]);
 
-        /* "tests/cynum.pyx":849
+        /* "tests/cynum.pyx":850
  *             for j in range(N_DIGITS_I, -1, -1):
  *                 y = second.digits[j]
  *                 if first.negative:             # <<<<<<<<<<<<<<
@@ -12218,7 +12191,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
         __pyx_t_2 = (__pyx_v_first->negative != 0);
         if (__pyx_t_2) {
 
-          /* "tests/cynum.pyx":850
+          /* "tests/cynum.pyx":851
  *                 y = second.digits[j]
  *                 if first.negative:
  *                     if y > 9:  # overflow lmao             # <<<<<<<<<<<<<<
@@ -12228,7 +12201,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
           __pyx_t_2 = (__pyx_v_y > 9);
           if (__pyx_t_2) {
 
-            /* "tests/cynum.pyx":851
+            /* "tests/cynum.pyx":852
  *                 if first.negative:
  *                     if y > 9:  # overflow lmao
  *                         y = -y             # <<<<<<<<<<<<<<
@@ -12237,7 +12210,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
             __pyx_v_y = (-__pyx_v_y);
 
-            /* "tests/cynum.pyx":850
+            /* "tests/cynum.pyx":851
  *                 y = second.digits[j]
  *                 if first.negative:
  *                     if y > 9:  # overflow lmao             # <<<<<<<<<<<<<<
@@ -12246,7 +12219,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
           }
 
-          /* "tests/cynum.pyx":849
+          /* "tests/cynum.pyx":850
  *             for j in range(N_DIGITS_I, -1, -1):
  *                 y = second.digits[j]
  *                 if first.negative:             # <<<<<<<<<<<<<<
@@ -12255,7 +12228,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         }
 
-        /* "tests/cynum.pyx":853
+        /* "tests/cynum.pyx":854
  *                         y = -y
  * 
  *                 if y == 0 and overflow == 0:             # <<<<<<<<<<<<<<
@@ -12273,7 +12246,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
         __pyx_L13_bool_binop_done:;
         if (__pyx_t_2) {
 
-          /* "tests/cynum.pyx":854
+          /* "tests/cynum.pyx":855
  * 
  *                 if y == 0 and overflow == 0:
  *                     continue             # <<<<<<<<<<<<<<
@@ -12282,7 +12255,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
           goto __pyx_L8_continue;
 
-          /* "tests/cynum.pyx":853
+          /* "tests/cynum.pyx":854
  *                         y = -y
  * 
  *                 if y == 0 and overflow == 0:             # <<<<<<<<<<<<<<
@@ -12291,7 +12264,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         }
 
-        /* "tests/cynum.pyx":856
+        /* "tests/cynum.pyx":857
  *                     continue
  * 
  *                 overflow = (x * y) + overflow + result.digits[j-place_val]             # <<<<<<<<<<<<<<
@@ -12300,7 +12273,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         __pyx_v_overflow = (((__pyx_v_x * __pyx_v_y) + __pyx_v_overflow) + (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]));
 
-        /* "tests/cynum.pyx":857
+        /* "tests/cynum.pyx":858
  * 
  *                 overflow = (x * y) + overflow + result.digits[j-place_val]
  *                 if (overflow > 9):             # <<<<<<<<<<<<<<
@@ -12310,7 +12283,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
         __pyx_t_2 = (__pyx_v_overflow > 9);
         if (__pyx_t_2) {
 
-          /* "tests/cynum.pyx":858
+          /* "tests/cynum.pyx":859
  *                 overflow = (x * y) + overflow + result.digits[j-place_val]
  *                 if (overflow > 9):
  *                     result.digits[j-place_val] = overflow % 10             # <<<<<<<<<<<<<<
@@ -12319,7 +12292,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
           (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]) = (__pyx_v_overflow % 10);
 
-          /* "tests/cynum.pyx":859
+          /* "tests/cynum.pyx":860
  *                 if (overflow > 9):
  *                     result.digits[j-place_val] = overflow % 10
  *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over             # <<<<<<<<<<<<<<
@@ -12328,7 +12301,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
           __pyx_v_overflow = ((unsigned char)(__pyx_v_overflow * 0.1));
 
-          /* "tests/cynum.pyx":857
+          /* "tests/cynum.pyx":858
  * 
  *                 overflow = (x * y) + overflow + result.digits[j-place_val]
  *                 if (overflow > 9):             # <<<<<<<<<<<<<<
@@ -12338,7 +12311,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
           goto __pyx_L15;
         }
 
-        /* "tests/cynum.pyx":861
+        /* "tests/cynum.pyx":862
  *                     overflow = <unsigned char>(overflow*0.1)  # Integer division for carry-over
  *                 else:
  *                     result.digits[j-place_val] = overflow             # <<<<<<<<<<<<<<
@@ -12348,7 +12321,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
         /*else*/ {
           (__pyx_v_result.digits[(__pyx_v_j - __pyx_v_place_val)]) = __pyx_v_overflow;
 
-          /* "tests/cynum.pyx":862
+          /* "tests/cynum.pyx":863
  *                 else:
  *                     result.digits[j-place_val] = overflow
  *                     overflow=0             # <<<<<<<<<<<<<<
@@ -12361,7 +12334,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
         __pyx_L8_continue:;
       }
 
-      /* "tests/cynum.pyx":846
+      /* "tests/cynum.pyx":847
  *                 x = -x
  * 
  *         if x != 0:             # <<<<<<<<<<<<<<
@@ -12370,7 +12343,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
     }
 
-    /* "tests/cynum.pyx":864
+    /* "tests/cynum.pyx":865
  *                     overflow=0
  * 
  *         postincrement(place_val)             # <<<<<<<<<<<<<<
@@ -12380,7 +12353,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
     (void)((__pyx_v_place_val++));
   }
 
-  /* "tests/cynum.pyx":867
+  /* "tests/cynum.pyx":868
  *             # This line adds the carry-over to the next digit
  * 
  *     if negate:             # <<<<<<<<<<<<<<
@@ -12390,7 +12363,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
   __pyx_t_2 = (__pyx_v_negate != 0);
   if (__pyx_t_2) {
 
-    /* "tests/cynum.pyx":868
+    /* "tests/cynum.pyx":869
  * 
  *     if negate:
  *         for i in range(MAX_LENGTH):             # <<<<<<<<<<<<<<
@@ -12402,7 +12375,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
     for (__pyx_t_1 = 0; __pyx_t_1 < __pyx_t_6; __pyx_t_1+=1) {
       __pyx_v_i = __pyx_t_1;
 
-      /* "tests/cynum.pyx":869
+      /* "tests/cynum.pyx":870
  *     if negate:
  *         for i in range(MAX_LENGTH):
  *             if result.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -12412,7 +12385,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
       __pyx_t_2 = ((__pyx_v_result.digits[__pyx_v_i]) != 0);
       if (__pyx_t_2) {
 
-        /* "tests/cynum.pyx":870
+        /* "tests/cynum.pyx":871
  *         for i in range(MAX_LENGTH):
  *             if result.digits[i] != 0:
  *                 result.digits[i] = -result.digits[i]             # <<<<<<<<<<<<<<
@@ -12421,7 +12394,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         (__pyx_v_result.digits[__pyx_v_i]) = (-(__pyx_v_result.digits[__pyx_v_i]));
 
-        /* "tests/cynum.pyx":871
+        /* "tests/cynum.pyx":872
  *             if result.digits[i] != 0:
  *                 result.digits[i] = -result.digits[i]
  *                 break             # <<<<<<<<<<<<<<
@@ -12430,7 +12403,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
         goto __pyx_L18_break;
 
-        /* "tests/cynum.pyx":869
+        /* "tests/cynum.pyx":870
  *     if negate:
  *         for i in range(MAX_LENGTH):
  *             if result.digits[i] != 0:             # <<<<<<<<<<<<<<
@@ -12441,7 +12414,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
     }
     __pyx_L18_break:;
 
-    /* "tests/cynum.pyx":867
+    /* "tests/cynum.pyx":868
  *             # This line adds the carry-over to the next digit
  * 
  *     if negate:             # <<<<<<<<<<<<<<
@@ -12450,7 +12423,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   }
 
-  /* "tests/cynum.pyx":872
+  /* "tests/cynum.pyx":873
  *                 result.digits[i] = -result.digits[i]
  *                 break
  *     _normalize_digits(&result, False)             # <<<<<<<<<<<<<<
@@ -12459,7 +12432,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
  */
   _normalize_digits((&__pyx_v_result), 0);
 
-  /* "tests/cynum.pyx":873
+  /* "tests/cynum.pyx":874
  *                 break
  *     _normalize_digits(&result, False)
  *     return result             # <<<<<<<<<<<<<<
@@ -12469,7 +12442,7 @@ static struct _cydecimal __pyx_f_5tests_5cynum__mult_decimals_cy(_cydecimal_ptr 
   __pyx_r = __pyx_v_result;
   goto __pyx_L0;
 
-  /* "tests/cynum.pyx":829
+  /* "tests/cynum.pyx":830
  *     return first
  * 
  * cdef _cydecimal _mult_decimals_cy(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil:             # <<<<<<<<<<<<<<

@@ -17,7 +17,7 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)151)
+#define N_DIGITS ((iterable_t)50)
 #define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
