@@ -31,22 +31,22 @@ setup(
 )], nthreads=12, show_all_warnings=1, annotate=1),
     zip_safe=False, include_dirs=include
 )
+
 exit()
-
-# setup(
-#     ext_modules=cythonize([Extension("video_copy", sources=["video_copy.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
-# )], nthreads=12, show_all_warnings=1, annotate=1),
-#     zip_safe=False, include_dirs=include
-# )
-
+setup(
+    ext_modules=cythonize([Extension("video_copy", sources=["video_copy.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
+)], nthreads=12, show_all_warnings=1, annotate=1),
+    zip_safe=False, include_dirs=include
+)
 
 
-# setup(
-#     ext_modules=cythonize([Extension("tests.precision_mandelbrot", sources=["tests/precision_mandelbrot.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
-# )], nthreads=12, show_all_warnings=1, annotate=1),
-#     zip_safe=False, include_dirs=include
-# )
 
+setup(
+    ext_modules=cythonize([Extension("tests.precision_mandelbrot", sources=["tests/precision_mandelbrot.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
+)], nthreads=12, show_all_warnings=1, annotate=1),
+    zip_safe=False, include_dirs=include
+)
+exit()
 # setup(
 #     ext_modules=cythonize([Extension("src.cydecimal", sources=["src/cydecimal.pyx"], include_dirs=include, extra_compile_args=args, extra_link_args=link_args,\
 # )], nthreads=12, show_all_warnings=1, annotate=1),

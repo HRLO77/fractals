@@ -17,12 +17,12 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)50)
+#define N_DIGITS ((iterable_t)151)
 #define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
-#define N_PRECISION_I ((N_DIGITS_I))  // very honest, i dunno why this is?
+#define N_PRECISION_I ((N_DIGITS_I))
 #define CAPITAL_E 'E'
 #define ZERO '0'
 #define PERIOD '.'
@@ -83,16 +83,26 @@ static bool inline _eq_char(const char first[MAX_LENGTH], const char second[MAX_
     return true;
 }
 
-static void inline _left_shift_digits( _cydecimal_ptr first, iterable_t shift) {
+static void inline _right_shift_digits( _cydecimal_ptr first, exponent_t shift);
+
+static void inline _left_shift_digits( _cydecimal_ptr first, exponent_t shift) {
+    if (shift < 0){
+        _right_shift_digits(first, abs(shift));
+        return;
+    }
     memmove(first->digits, first->digits + shift, MAX_LENGTH - shift);
     memset(first->digits + MAX_LENGTH - shift, 0, shift);
     first->exp -= (shift);
 }
 
-static void inline _right_shift_digits( _cydecimal_ptr first, iterable_t shift) {
+static void inline _right_shift_digits( _cydecimal_ptr first, exponent_t shift) {
+    if (shift < 0){
+        _left_shift_digits(first, abs(shift));
+        return;
+    }
     memmove(first->digits + shift, first->digits, MAX_LENGTH - shift); // this will probably result in errors, switch with memmove if so
     memset(first->digits, 0, shift);
-    first->exp = (first->exp)+(shift);
+    first->exp += (shift);
 }
 
 static void inline _program_error(char* err){
@@ -351,8 +361,8 @@ static inline void _negate(_cydecimal_ptr first){
     ctypedef (_cydecimal*) _cydecimal_ptr
 
     const _cydecimal _abs_dec(_cydecimal first) noexcept nogil
-    const void _left_shift_digits(_cydecimal_ptr first, const iterable_t shift) noexcept nogil
-    const void _right_shift_digits(_cydecimal_ptr first, const iterable_t shift) noexcept nogil
+    const void _left_shift_digits(_cydecimal_ptr first, const exponent_t shift) noexcept nogil
+    const void _right_shift_digits(_cydecimal_ptr first, const exponent_t shift) noexcept nogil
     const void _program_error(const char* err) noexcept nogil
     const _cydecimal _decimal(const char[MAX_LENGTH]* digits, const exponent_t exp, const bool negative) noexcept nogil
     const void _destruct_decimal(_cydecimal_ptr first) noexcept nogil

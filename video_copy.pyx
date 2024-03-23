@@ -8,7 +8,7 @@ from libc.stdio cimport puts, printf
 import src.mandelbrot_decimal as mandelbrot_decimal
 import src.mandelbrot as mandelbrot
 import tests.precision_mandelbrot as mdt
-from tests.cynum cimport _norm_decimal_from_string, _cydecimal, iterable_t, exponent_t
+from tests.cynum cimport _decimal_from_string, _norm_decimal_from_string, _cydecimal, iterable_t, exponent_t
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import decimal
@@ -22,18 +22,18 @@ warnings.filterwarnings('ignore')
 np.seterr(all="ignore", )
 # real, imag = -0.76157365, -0.0847596
 print('int')
-cdef _cydecimal real = _norm_decimal_from_string(b'0.2505845176040427718957771316508473905552515740661571423212687174479167'), imag = _norm_decimal_from_string(b'0.00002276281458802574942404639696751451557095909568791588147481282552083')
+cdef _cydecimal real = _decimal_from_string(b'0.2505845176040427718957771316508473905552515740661571423212687174479167'), imag = _decimal_from_string(b'0.00002276281458802574942404639696751451557095909568791588147481282552083')
 # other possible zooms,  (-1.62917,-0.0203968)  (0.42884,-0.231345)
 # data = np.rot90(new_video.main(-2, 0.5, -1.3, 0, 500, 250, 100))
 # w = imageio.get_writer('mandelbrot.mp4', format='FFMPEG', mode='I', fps=30, output_params=['-preset', 'ultrafast', '-tune', 'zerolatency', '-an'], macro_block_size=16, )
 cdef int iterations = 700
 print('out')
-cdef _cydecimal xmin = _norm_decimal_from_string(b'-2.0')
-cdef _cydecimal xmax = _norm_decimal_from_string(b'1.0')
-cdef _cydecimal ymin = _norm_decimal_from_string(b'-1.2')
-cdef _cydecimal ymax = _norm_decimal_from_string(b'1.2')
-cdef _cydecimal zoom_const = _norm_decimal_from_string(b'0.95')
-cdef _cydecimal n_recip = _norm_decimal_from_string(b'0.01')
+cdef _cydecimal xmin = _decimal_from_string(b'-2.0')
+cdef _cydecimal xmax = _decimal_from_string(b'1.0')
+cdef _cydecimal ymin = _decimal_from_string(b'-1.2')
+cdef _cydecimal ymax = _decimal_from_string(b'1.2')
+cdef _cydecimal zoom_const = _decimal_from_string(b'0.95')
+cdef _cydecimal n_recip = _decimal_from_string(b'0.01')
 print('out')
 ctypedef list (*func_t)(
     const _cydecimal xmin,

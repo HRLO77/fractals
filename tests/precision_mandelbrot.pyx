@@ -2,7 +2,7 @@
 # disutils: language=c
 
 #center=(1.4,0)
-from .cynum cimport _square_decimal, _mult_decimals, _subtract_decimals, _add_decimals, _abs_dec, _printf_dec, _dec_2_str, _left_shift_digits, _right_shift_digits, _normalize_digits, _empty_decimal, _cydecimal, _cydecimal_ptr, _mult_decimal_decimal_digit, _true_greater_than, _true_eq, _decimal_from_double
+from .cynum cimport _square_decimal, _mult_decimals, _subtract_decimals, _add_decimals, _abs_dec, _printf_dec, _dec_2_str, _left_shift_digits, _right_shift_digits, _normalize_digits, _empty_decimal, _cydecimal, _cydecimal_ptr, _mult_decimal_decimal_digit, _true_greater_than, _true_eq, _decimal_from_double, MAX_LENGTH, MAX_INDICE, N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I
 
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
@@ -13,8 +13,11 @@ cdef extern from "<stdbool.h>" nogil:
     ctypedef _Bool bool
 
 
-cdef _cydecimal FOUR = ((_decimal_from_double(4)))
-    
+cdef _cydecimal FOUR = _empty_decimal()
+cdef _cydecimal TWO = _empty_decimal()
+FOUR.digits[N_DIGITS_I] = 4  # i sure hope this is fast!
+TWO.digits[N_DIGITS_I] = 2
+
 cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:
     cdef _cydecimal temp1, nreal, real = creal, imag = cimag
     cdef unsigned int n
@@ -25,7 +28,8 @@ cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, con
         nreal = _add_decimals(nreal, temp1)
         nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
         
-        temp1 = _mult_decimal_decimal_digit(&real, &imag, 2)
+        temp1 = _mult_decimals(&real, &imag)
+        temp1 = _mult_decimals(&temp1, &TWO)
         real = nreal
         #if step_div!=1:
         #    if not(n%step_div):
@@ -51,12 +55,8 @@ cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, con
     return maxiter
 
 cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:
-    _printf_dec(&stop)
-    _printf_dec(&start)
     stop = _subtract_decimals(stop,start)
-    _printf_dec(&stop)
     stop = (_mult_decimals(&stop, n_recip))
-    _printf_dec(&stop)
     cdef unsigned int i
     for i in range(n):
         arr[i] = start

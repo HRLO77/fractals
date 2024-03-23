@@ -139,10 +139,10 @@ static struct _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydec
     _normalize_digits(second, false);
 
     if (second->exp < first->exp){ // we want to minimize the exp, so that it stays an integer
-        _left_shift_digits(first, abs(first->exp-second->exp));
+        _left_shift_digits(first, (first->exp-second->exp));
     }
     else if (second->exp > first->exp){ // we want to minimize the exp, so that it stays an integer
-        _left_shift_digits(second, abs(second->exp-first->exp));
+        _left_shift_digits(second, (second->exp-first->exp));
     }
     result.exp = first->exp + second->exp;
     result.negative = negate;
@@ -293,6 +293,7 @@ static struct _cydecimal _norm_decimal_from_string(const char* first) {
     large_len = large_len + small_len;
 
     large_copy = (char*)malloc(large_len * sizeof(char));
+    char* final_large_cpy = large_copy;
     memcpy(large_copy, large_norm, length * sizeof(char));
     free(large_norm_copy);
 
@@ -319,7 +320,7 @@ static struct _cydecimal _norm_decimal_from_string(const char* first) {
         res.digits[N_DIGITS_I - i] = large_copy[large_len - 1 - i] - ZERO;
     }
 
-    free(large_copy);
+    free(final_large_cpy);
 
     return res;
 }
@@ -505,13 +506,11 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
 
 static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second) {
     iterable_t i;
-    
     if (first.exp > second.exp) {
-        _left_shift_digits(&second, first.exp - second.exp);
+        _left_shift_digits(&second, (first.exp - second.exp));
     } else if (second.exp > first.exp) {
         _left_shift_digits(&first, second.exp - first.exp);
     }
-    
     if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
         if (second.negative){
             _negate(&second);

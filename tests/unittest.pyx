@@ -1,4 +1,4 @@
-from .cynum cimport _subtract_decimals, _add_decimals, _decimal_from_string, _mult_decimals, _square_decimal, _abs_dec, _dec_2_str, dec_2_str, _printf_dec, printf_dec, _cydecimal, add_decimals, subtract_decimals, mult_decimals, square_decimal
+from .cynum cimport _subtract_decimals, _add_decimals, _norm_decimal_from_string, _mult_decimals, _square_decimal, _abs_dec, _dec_2_str, dec_2_str, _printf_dec, printf_dec, _cydecimal, add_decimals, subtract_decimals, mult_decimals, square_decimal
 from libc.stdio cimport printf, puts
 
 cpdef inline str dec_str(_cydecimal dec) noexcept:
@@ -12,10 +12,10 @@ cpdef public int main():
     
     # combinations - first-second, first-third, first-fourth, second-third, second-fourth, third-fourth
 
-    cdef _cydecimal first_cy = _decimal_from_string(b'103.192')
-    cdef _cydecimal second_cy = _decimal_from_string(b'-9301.2')
-    cdef _cydecimal third_cy = _decimal_from_string(b'-103.192')
-    cdef _cydecimal fourth_cy = _decimal_from_string(b'9301.2')
+    cdef _cydecimal first_cy = _norm_decimal_from_string(b'103.192')
+    cdef _cydecimal second_cy = _norm_decimal_from_string(b'-9301.2')
+    cdef _cydecimal third_cy = _norm_decimal_from_string(b'-103.192')
+    cdef _cydecimal fourth_cy = _norm_decimal_from_string(b'9301.2')
 
     print(f"\n\nInstantiation test\nExpected: {first_d} {second_d} {third_d} {fourth_d}")
     print(f"Tested: {dec_str(first_cy)} {dec_str(second_cy)} {dec_str(third_cy)} {dec_str(fourth_cy)}\n")
