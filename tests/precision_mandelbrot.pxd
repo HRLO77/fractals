@@ -2,6 +2,4 @@
 # disutils: language=c
 from .cynum cimport _cydecimal
 
-cdef inline list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter) except *
-
-cdef inline unsigned int mandelbrot(_cydecimal creal, _cydecimal cimag, const unsigned int maxiter, const unsigned int testi, const unsigned int testj) except *
+cdef inline list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal x_recip,const _cydecimal y_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter) except *

@@ -9,7 +9,7 @@ cd = {'language_level' : "3"}
 # args = ['/O2', '/fp:fast', '/Qfast_transcendentals'] # args for MSVC
 
 # args = ['-Ofast', '-funsafe-math-optimizations', '-mtune=native', '-march=native', '-ffinite-math-only', '-freciprocal-math', '-shared', '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-std=c++20', '-fno-trapping-math', '-fno-math-errno', '-fno-signed-zeros', '-falign-loops', '-ffp-contract=fast', '-ftree-vectorize', '-mavx', '-mavx2', '-ftree-vectorizer-verbose=5', '-fopenmp', '-faggressive-loop-optimizations', '-floop-nest-optimize', '-funroll-all-loops', '-ftree-parallelize-loops=5','-ftree-loop-optimize', '-floop-parallelize-all', '-ffinite-loops', '-Wwrite-strings', '-lgomp', '-fprefetch-loop-arrays']  # args for GCC
-args = ['-O1']
+args = ['-O2']
 
 link_args = ['-static-libgcc', '-static-libstdc++', '-W','-Bstatic','--whole-file', '-lwinpthread', '-fopenmp', '-shared', '-lgomp']
 

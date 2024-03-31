@@ -17,8 +17,8 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)50)
-#define N_PRECISION ((iterable_t)50)
+#define N_DIGITS ((iterable_t)40)
+#define N_PRECISION ((iterable_t)10)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
@@ -29,6 +29,7 @@ typedef unsigned short iterable_t;  // formerly ushort
 #define NEGATIVE '-'
 #define TERMINATOR '\0'
 
+const char ZERO_ARRAY[MAX_LENGTH] = {0};
 
 struct _cydecimal {
     char digits[MAX_LENGTH];
@@ -293,7 +294,7 @@ static inline iterable_t _n_empty_zeros(const _cydecimal_ptr first){
             return N_DIGITS - i;
         }
     }
-    return N_DIGITS;
+    return 0; // means that the entire leftside is zero
 }
 
 static inline iterable_t _n_whole_digits(const _cydecimal_ptr first){
@@ -364,13 +365,7 @@ static inline char _close_zero(const _cydecimal_ptr first){
 }
 
 static inline bool _is_zero(const _cydecimal_ptr first){
-    exponent_t i;
-    for (i=MAX_INDICE; i > -1;i--){
-        if (first->digits[i]!=0){
-            return false;
-        }
-    }
-    return true;
+    return strcmp(first->digits, ZERO_ARRAY)==0; // easier tbh
 }
 
 
@@ -388,7 +383,8 @@ static inline bool _is_zero(const _cydecimal_ptr first){
     const char TERMINATOR
     const iterable_t MAX_INDICE
     const iterable_t MAX_LENGTH
-    
+    const char[MAX_LENGTH] ZERO_ARRAY
+
     cdef struct _cydecimal:
         char[MAX_LENGTH] digits
         exponent_t exp

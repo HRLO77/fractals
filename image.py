@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import decimal
+
 decimal.getcontext().prec = 73
 
 data = np.rot90(mandelbrot.run(decimal.Decimal(-2),decimal.Decimal(0.5), decimal.Decimal(-1.3), decimal.Decimal(1.3), 320, 320, 100))
