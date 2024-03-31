@@ -18,7 +18,7 @@ typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
 #define N_DIGITS ((iterable_t)50)
-#define N_PRECISION ((iterable_t)10)
+#define N_PRECISION ((iterable_t)50)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
@@ -124,7 +124,7 @@ static inline void _destruct_decimal(_cydecimal_ptr first){
 
 static char* _dec_2_str(const _cydecimal_ptr dec) {
     char* string = (char*)malloc((MAX_LENGTH + 20) * sizeof(char));
-    int i, x = 0;
+    exponent_t i, x = 0;
     iterable_t temp = abs(dec->exp);
     iterable_t temp2;
     if (temp != 0) {
@@ -148,7 +148,7 @@ static char* _dec_2_str(const _cydecimal_ptr dec) {
         //}
     }
 
-    string[MAX_LENGTH + x] = CAPITAL_E;
+    string[MAX_LENGTH + x] = CAPITAL_E; // from here, working on exp
     x++;
     if (temp != 0) {
         if (dec->exp < 0) {
@@ -156,8 +156,8 @@ static char* _dec_2_str(const _cydecimal_ptr dec) {
             x++;
         }
 
-        for (i = 0; i < temp2; i++) {
-            string[MAX_LENGTH + x + i] = (temp % 10) + '0';
+        for (i = temp2; i > 0; i--) {
+            string[MAX_LENGTH + x + i-1] = (temp % 10) + '0';
             temp = (iterable_t)(temp*0.1);
         }
 
@@ -173,104 +173,105 @@ static void _printf_dec(const _cydecimal_ptr dec){
     printf("%s\\n", _dec_2_str(dec));
 }
 
-static inline bool _greater_than_digits(const _cydecimal_ptr first, const _cydecimal_ptr second){
-    if ((!first->negative) && (second->negative)){
+static inline bool _greater_than_digits(const struct _cydecimal first, const struct _cydecimal second){
+    if ((!first.negative) && (second.negative)){
         return true;
     }
-    else if ((first->negative)){
+    else if ((first.negative) && (!second.negative)){
         return false;
     }
     iterable_t i;
     for (i = 0; i < MAX_LENGTH; i++) {
-        if (first->digits[i] > second->digits[i]) {
-            return true;
-        } else if (first->digits[i] < second->digits[i]) {
-            return false;
+        if (first.digits[i] > second.digits[i]) {
+            return (first.negative) ? false : true;
+        } else if (first.digits[i] < second.digits[i]) {
+            return (first.negative) ? true : false;
         }
     }
     return false;
 }
 
-static inline bool _greater_than_exp(const _cydecimal_ptr first, const _cydecimal_ptr second){
-    return first->exp > second->exp;
+static inline bool _greater_than_exp(const struct _cydecimal first, const struct _cydecimal second){
+    return first.exp > second.exp;
 }
 
-static inline bool _true_greater_than(_cydecimal_ptr first, _cydecimal_ptr second){
-    if ((!first->negative) && (second->negative)){
+static inline bool _true_greater_than(struct _cydecimal first, struct _cydecimal second){
+    if ((!first.negative) && (second.negative)){// if first is positive & second is negative
         return true;
     }
-    else if ((first->negative)){
+    else if ((first.negative) && (!second.negative)){ // if first is negative and second is positive :)
         return false;
     }
-    if (first->exp > second->exp) {
-        _left_shift_digits(second, first->exp - second->exp);
-    } else if (second->exp > first->exp) {
-        _left_shift_digits(first, second->exp - first->exp);
+
+    if (first.exp > second.exp) { // minimize exp i.e BRING DIGITS TO THE LEFT OF THE DECIMAL
+        _left_shift_digits(&first, first.exp - second.exp);
+    } else if (second.exp > first.exp) {
+        _left_shift_digits(&second, second.exp - first.exp);
     }
     return _greater_than_digits(first, second);
 }
 
-static inline bool _eq_digits(const _cydecimal_ptr first, const _cydecimal_ptr second){
+static inline bool _eq_digits(const struct _cydecimal first, const struct _cydecimal second){
     iterable_t i;
-    if (first->negative != second->negative){
+    if (first.negative != second.negative){
         return false;
     }
     for (i = 0; i < MAX_LENGTH; i++) {
-        if (first->digits[i] != second->digits[i]) {
+        if (first.digits[i] != second.digits[i]) {
             return false;
         }
     }
     return true;
 }
 
-static inline bool _eq_exp(const _cydecimal_ptr first, const _cydecimal_ptr second){
-    return first->exp == second->exp;
+static inline bool _eq_exp(const struct _cydecimal first, const struct _cydecimal second){
+    return first.exp == second.exp;
 }
 
-static inline bool _true_eq(_cydecimal_ptr first, _cydecimal_ptr second){
-    if (first->exp > second->exp) {
-        _left_shift_digits(second, first->exp - second->exp);
-    } else if (second->exp > first->exp) {
-        _left_shift_digits(first, second->exp - first->exp);
+static inline bool _true_eq(struct _cydecimal first, struct _cydecimal second){
+    if (first.exp > second.exp) {
+        _left_shift_digits(&first, first.exp - second.exp);
+    } else if (second.exp > first.exp) {
+        _left_shift_digits(&second, second.exp - first.exp);
     } else {
         return _eq_digits(first, second);
     }
-    return (first->exp == second->exp) && _eq_digits(first, second);
+    return (first.exp == second.exp) && _eq_digits(first, second);
 }
 
-static inline bool _less_than_digits(const _cydecimal_ptr first, const _cydecimal_ptr second){
-    if ((!first->negative) && (second->negative)){
+static inline bool _less_than_digits(const struct _cydecimal first, const struct _cydecimal second){
+    if ((!first.negative) && (second.negative)){
         return false;
     }
-    else if ((first->negative)){
+    else if ((first.negative) && (!second.negative)){
         return true;
     }
     iterable_t i;
     for (i = 0; i < MAX_LENGTH; i++) {
-        if (first->digits[i] < second->digits[i]) {
-            return true;
-        } else if (first->digits[i] > second->digits[i]) {
-            return false;
+        if (first.digits[i] < second.digits[i]) {
+            return (first.negative) ? false : true;
+        } else if (first.digits[i] > second.digits[i]) {
+            return (first.negative) ? true : false;
         }
     }
     return false;
 }
 
-static inline bool _less_than_exp(_cydecimal_ptr first, _cydecimal_ptr second){
-    return first->exp < second->exp;
+static inline bool _less_than_exp(const struct _cydecimal first, const struct _cydecimal second){
+    return first.exp < second.exp;
 }
 
-static inline bool _true_less_than(_cydecimal_ptr first, _cydecimal_ptr second){
-    if ((!first->negative) && (second->negative)){
+static inline bool _true_less_than(struct _cydecimal first, struct _cydecimal second){
+    if ((!first.negative) && (second.negative)){
         return false;
     }
-    else if ((first->negative)){
+    else if ((first.negative) && (!second.negative)){
         return true;
     }
-    if (first->exp > second->exp) {
-        _left_shift_digits(second, first->exp - second->exp);
-    } else if (second->exp > first->exp) {
-        _left_shift_digits(first, second->exp - first->exp);
+    if (first.exp > second.exp) {
+        _left_shift_digits(&first, first.exp - second.exp);
+    } else if (second.exp > first.exp) {
+        _left_shift_digits(&second, second.exp - first.exp);
     }
     return _less_than_digits(first, second);
 }
@@ -310,8 +311,8 @@ static inline iterable_t _n_digits(const _cydecimal_ptr first){
 }
 
 static inline void _normalize_digits(_cydecimal_ptr first, const bool mode){
-    iterable_t i;
-    if (mode) {
+    exponent_t i;
+     if (mode) {
         i = _n_precision(first);
         if (i !=0){_left_shift_digits(first, i);};
         return;
@@ -339,6 +340,40 @@ static inline struct _cydecimal _abs_dec(struct _cydecimal first){
 static inline void _negate(_cydecimal_ptr first){
     first->negative = !(first->negative);
 }
+
+static inline char _close_zero(const _cydecimal_ptr first){
+    exponent_t temp;
+    if (first->exp < -(MAX_INDICE)){ // may lose a digit of precision :/
+        return 1;  // if the exponent is super slow i.e practically zero
+    } // 1 means YES - NUMBER IS ZERO
+    else if (first->exp < -(N_DIGITS)){
+        _normalize_digits(first, false);
+        temp = ((first->exp)-_n_whole_digits(first)); // this is ignoring the decimal portion of the array - will check later
+        if (temp < -(N_DIGITS)){ 
+            return 0; // YES - NUMBER CLOSE TO ZERO, NO CALCULATIONS CAN BE FURTHER PERFORMED BUT THERE MAY STILL BE SPACE TO THE RIGHT
+        }
+        else{
+            _normalize_digits(first, true); // maybe pushy (i.e removing beginning digits)
+            temp = ((first->exp)-_n_precision(first));
+            if (temp < -(N_PRECISION)){ 
+                return 0; // YES - NUMBER CLOSE TO ZERO, NO CALCULATIONS CAN BE FURTHER PERFORMED BUT THERE MAY STILL BE SPACE TO THE RIGHT
+            }
+        }
+    }
+    return -1;  // NO - NUMBER DID NOT FILL UP ENTIRELY OR THE N_DIGITS SPACE
+}
+
+static inline bool _is_zero(const _cydecimal_ptr first){
+    exponent_t i;
+    for (i=MAX_INDICE; i > -1;i--){
+        if (first->digits[i]!=0){
+            return false;
+        }
+    }
+    return true;
+}
+
+
     '''
     ctypedef unsigned short iterable_t
     ctypedef short exponent_t
@@ -367,16 +402,16 @@ static inline void _negate(_cydecimal_ptr first){
     const _cydecimal _decimal(const char[MAX_LENGTH]* digits, const exponent_t exp, const bool negative) noexcept nogil
     const void _destruct_decimal(_cydecimal_ptr first) noexcept nogil
     const void _printf_dec(const _cydecimal_ptr dec) noexcept nogil
-    const bool _greater_than_digits(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
-    const bool _greater_than_exp(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
-    const bool _true_greater_than(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil
-    const bool _eq_digits(_cydecimal * const first,  _cydecimal * const second) noexcept nogil
-    const bool _eq_exp(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
-    const bool _true_eq(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil
+    const bool _greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil
+    const bool _greater_than_exp(const _cydecimal first, const _cydecimal second) noexcept nogil
+    const bool _true_greater_than(_cydecimal first, _cydecimal second) noexcept nogil
+    const bool _eq_digits(const _cydecimal first,  const _cydecimal second) noexcept nogil
+    const bool _eq_exp(const _cydecimal first, const _cydecimal second) noexcept nogil
+    const bool _true_eq(_cydecimal first, _cydecimal second) noexcept nogil
     const void _empty_char_arr(char* first) noexcept nogil
-    const bool _less_than_digits(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
-    const bool _less_than_exp(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil
-    const bool _true_less_than(_cydecimal_ptr first, _cydecimal_ptr second) noexcept nogil
+    const bool _less_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil
+    const bool _less_than_exp(const _cydecimal first, const _cydecimal second) noexcept nogil
+    const bool _true_less_than(_cydecimal first, _cydecimal second) noexcept nogil
     const iterable_t _n_precision(const _cydecimal_ptr first) noexcept nogil
     const iterable_t _n_empty_zeros(const _cydecimal_ptr first) noexcept nogil
     const iterable_t _n_digits(const _cydecimal_ptr first) noexcept nogil
@@ -388,6 +423,8 @@ static inline void _negate(_cydecimal_ptr first){
     const bool _eq_char(const char[MAX_LENGTH] first, const char[MAX_LENGTH] second) noexcept nogil
     const _cydecimal _empty_decimal() noexcept nogil
     const void _negate(_cydecimal_ptr first) noexcept nogil
+    const char _close_zero(_cydecimal_ptr first) noexcept nogil
+    const bool _is_zero(_cydecimal_ptr first) noexcept nogil
 cdef inline _cydecimal _norm_decimal_from_double(const double first) noexcept nogil
 cdef inline _cydecimal _decimal_from_string(const char* first) noexcept nogil
 cdef inline _cydecimal _norm_decimal_from_string(const char* first) noexcept nogil
@@ -396,10 +433,10 @@ cdef inline _cydecimal _norm_decimal_from_int(int first) noexcept nogil
 cdef inline _cydecimal _decimal_from_double(const double first) noexcept nogil
 cdef inline _cydecimal _subtract_decimals(_cydecimal first, _cydecimal second) noexcept nogil
 cdef inline _cydecimal _add_decimals(_cydecimal first, _cydecimal second) noexcept nogil
-cdef inline _cydecimal _mult_decimals(const _cydecimal_ptr first, const _cydecimal_ptr second) noexcept nogil
-cdef inline _cydecimal _square_decimal(const _cydecimal_ptr first) noexcept nogil
+cdef inline _cydecimal _mult_decimals(const _cydecimal first, const _cydecimal second) noexcept nogil
+cdef inline _cydecimal _square_decimal(const _cydecimal first) noexcept nogil
 cdef inline _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first, const _cydecimal_ptr second, const int number) noexcept nogil
-
+'''
 cdef inline _cydecimal _cydecimal_ptr_2_cydecimal(_cydecimal_ptr first) noexcept nogil:
     return dereference(first)
 
@@ -517,7 +554,7 @@ cdef inline void _normalize_digits_cy(_cydecimal_ptr first, const bool mode) noe
         first.exp += i
         _right_shift_digits(first, i)
         return
-
+'''
 
 cpdef inline dict new_decimal_from_string(const char* first) noexcept:
     return _format_decimal(_decimal_from_string(first)) 
@@ -557,32 +594,32 @@ cpdef inline dict left_shift_digits(_cydecimal res, const iterable_t num) noexce
     return _format_decimal(res) 
 
 cpdef inline bool greater_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
-    return _greater_than_digits(&first, &second)
+    return _greater_than_digits(first, second)
 
 cpdef inline bool greater_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _greater_than_exp(&first, &second)
+    return _greater_than_exp(first, second)
 
 cpdef inline bool true_greater_than(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _true_greater_than(&first, &second)
+    return _true_greater_than(first, second)
 
 cpdef inline bool less_than_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
-    return _less_than_digits(&first, &second)
+    return _less_than_digits(first, second)
 
 cpdef inline bool less_than_exp(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _less_than_exp(&first, &second)
+    return _less_than_exp(first, second)
 
 cpdef inline bool true_less_than(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _true_less_than(&first, &second)
+    return _true_less_than(first, second)
 
 cpdef inline bool eq_digits(const _cydecimal first, const _cydecimal second) noexcept nogil:
-    return _eq_digits(&first, &second)
+    return _eq_digits(first, second)
 
 
 cpdef inline bool eq_exp(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _eq_exp(&first, &second)
+    return _eq_exp(first, second)
 
 cpdef inline bool true_eq(_cydecimal first, _cydecimal second) noexcept nogil:
-    return _true_eq(&first, &second)
+    return _true_eq(first, second)
 
 cpdef inline dict add_decimals(_cydecimal first, _cydecimal second) noexcept:
     return _format_decimal(_add_decimals(first, second)) 
@@ -614,10 +651,10 @@ cpdef inline void printf_dec(const _cydecimal dec) noexcept nogil:
     _printf_dec(&dec)
 
 cpdef inline dict square_decimal(const _cydecimal first) noexcept:
-    return _format_decimal(_square_decimal(&first)) 
+    return _format_decimal(_square_decimal(first)) 
 
 cpdef inline dict mult_decimals(const _cydecimal first, const _cydecimal second) noexcept:
-    return _format_decimal(_mult_decimals(&first, &second)) 
+    return _format_decimal(_mult_decimals(first, second)) 
 
 cpdef inline dict mult_decimal_decimal_digit(const _cydecimal first, const _cydecimal second, const unsigned int x) noexcept:
     return _format_decimal(_mult_decimal_decimal_digit(&first, &second, x))
@@ -628,9 +665,3 @@ cpdef inline dict empty_decimal() noexcept:
 cdef inline dict _format_decimal(const _cydecimal res) noexcept:
     cdef bytes x = res.digits[:MAX_LENGTH]
     return {'exp': res.exp, 'negative': res.negative, 'digits': x}
-
-cpdef inline void test() noexcept nogil:
-    cdef _cydecimal test = _decimal_from_string(b'12.5712')
-    cdef _cydecimal test1 = _decimal_from_string(b'39.19001')
-    test = _mult_decimals(&test, &test1)
-    # -578.996009

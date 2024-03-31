@@ -28,7 +28,7 @@
   #define DL_IMPORT(_T) _T
 #endif
 
-__PYX_EXTERN_C PyObject *main(struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , struct _cydecimal const , unsigned int const , unsigned int const , unsigned int const );
+__PYX_EXTERN_C unsigned int mandelbrot(struct _cydecimal const , struct _cydecimal const , unsigned int const , int __pyx_skip_dispatch);
 
 #endif /* !__PYX_HAVE_API__tests__precision_mandelbrot */
 

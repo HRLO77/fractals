@@ -2,8 +2,8 @@
 # disutils: language=c
 
 #center=(1.4,0)
-from .cynum cimport _square_decimal, _mult_decimals, _subtract_decimals, _add_decimals, _abs_dec, _printf_dec, _dec_2_str, _left_shift_digits, _right_shift_digits, _normalize_digits, _empty_decimal, _cydecimal, _cydecimal_ptr, _mult_decimal_decimal_digit, _true_greater_than, _true_eq, _decimal_from_double, MAX_LENGTH, MAX_INDICE, N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I
-
+from .cynum cimport _square_decimal, _mult_decimals, _subtract_decimals, _add_decimals, _abs_dec, _printf_dec, _dec_2_str, _left_shift_digits, _right_shift_digits, _normalize_digits, _empty_decimal, _cydecimal, _cydecimal_ptr, _mult_decimal_decimal_digit, _true_greater_than, _true_eq, _decimal_from_double, MAX_LENGTH, MAX_INDICE, N_DIGITS, N_PRECISION, N_DIGITS_I, N_PRECISION_I, _is_zero, dec_2_str, _close_zero, _n_whole_digits, _norm_decimal_from_string, _eq_digits
+from libc.stdio cimport printf
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
 from cython.parallel cimport parallel, prange
@@ -13,24 +13,49 @@ cdef extern from "<stdbool.h>" nogil:
     ctypedef _Bool bool
 
 
-cdef _cydecimal FOUR = _empty_decimal()
-cdef _cydecimal TWO = _empty_decimal()
-FOUR.digits[N_DIGITS_I] = 4  # i sure hope this is fast!
-TWO.digits[N_DIGITS_I] = 2
-
-cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, const unsigned int maxiter) except * nogil:
-    cdef _cydecimal temp1, nreal, real = creal, imag = cimag
+cdef _cydecimal FOUR = _decimal_from_double(4.0)
+cdef _cydecimal TWO = _decimal_from_double(2.0)
+cdef _cydecimal misc = _norm_decimal_from_string(b'-14621746530859375.0')
+misc.exp = -16
+cdef public unsigned int mandelbrot(_cydecimal creal, _cydecimal cimag, const unsigned int maxiter, const unsigned int testi, const unsigned int testj) except *:
+    #_normalize_digits(&creal, False)
+    #_normalize_digits(&cimag, False)
+    cdef _cydecimal temp1, real = creal, imag = cimag, real2, imag2
     cdef unsigned int n
+
+   # if testi==12 and testj==100:
+        #print(dec_2_str(creal), dec_2_str(cimag))
+        #print('This was output.')
     for n in range(maxiter):
 
-        temp1 = _square_decimal(&imag)
-        nreal = _square_decimal(&real)
-        nreal = _add_decimals(nreal, temp1)
-        nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
+        #if testi==12 and testj==100:
+        #    print((dec_2_str(real)),_true_eq(real, misc), real.exp, misc.exp, _close_zero(&real), _close_zero(&imag))
+        real2 = _square_decimal(real) # x^2 + y^2
+        imag2 = _square_decimal(imag)
+
+        temp1 = _add_decimals(real2, imag2) # x^2 + y^2 > 4
+
+        #if (_is_zero(&real2) and _is_zero(&imag2)):
+        #    return maxiter
+        #printf('connected\n')
+        #_printf_dec(&imag)
+        if _true_greater_than(temp1,FOUR):
+            #printf('Ended %d\n', n)
+            #if testi==12 and testj==100:
+                #print('exit', n)
+                #exit()
+            return n
+        imag = _add_decimals(_mult_decimals(TWO, _mult_decimals(real, imag)), cimag) # y = (2*x*y)+cimag
+        real = _add_decimals(_subtract_decimals(real2, imag2), creal) # x = (x^2 - y^2) + creal
+
+        #nreal = _subtract_decimals(nreal, temp1)
+        #nreal = _add_decimals(nreal, creal)  # nreal = (r^2 - i^2) + creal
         
-        temp1 = _mult_decimals(&real, &imag)
-        temp1 = _mult_decimals(&temp1, &TWO)
-        real = nreal
+        #temp1 = _mult_decimals(real, imag)
+        #temp1 = _mult_decimals(temp1, TWO)
+       
+        #imag = _add_decimals(temp1, cimag)
+        #real = nreal
         #if step_div!=1:
         #    if not(n%step_div):
         #        _simplify_cydecimal(&imag)
@@ -41,26 +66,32 @@ cdef unsigned int mandelbrot(const _cydecimal creal, const _cydecimal cimag, con
         
         #9223372036854775807
         
-        temp1 = _square_decimal(&imag) # temp1 = i^2
-        nreal = _square_decimal(&real)
+        #temp1 = _square_decimal(imag) # temp1 = i^2
+        #nreal = _square_decimal(real)
 
 
-        nreal = _add_decimals(nreal,temp1) # temp2 = temp1+temp2
+        #nreal = _add_decimals(nreal,temp1) # temp2 = temp1+temp2
 
-        if _true_greater_than(&nreal,&FOUR):
-            return n
-        if _true_eq(&real, &creal):
-            if _true_eq(&imag, &cimag):
-                return maxiter
+
+        #if _true_eq(real, creal):
+        #    if _true_eq(imag, cimag):
+        #        return maxiter
+    #printf('Ended max\n')
+    #if testi==12 and testj==100:exit()
     return maxiter
 
-cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, const _cydecimal_ptr n_recip, _cydecimal start, _cydecimal stop) except * nogil:
+cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, _cydecimal n_recip, _cydecimal start, _cydecimal stop) except * nogil:
+    cdef _cydecimal temp
+    #_printf_dec(&start)
+    #_printf_dec(&stop)
     stop = _subtract_decimals(stop,start)
-    stop = (_mult_decimals(&stop, n_recip))
+
+    temp = (_mult_decimals(stop, n_recip))
+    
     cdef unsigned int i
     for i in range(n):
         arr[i] = start
-        start = _add_decimals(start, stop)
+        start = _add_decimals(start, temp)
 
 cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:
     cdef list l = []
@@ -72,16 +103,19 @@ cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const uns
     free(arr)
     return l
 
-cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * nogil:
+cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cydecimal_ptr r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) except * :
     cdef unsigned int i,j
-    with parallel(num_threads=8):
-        for i in prange(width, nogil=True, schedule='dynamic'):
-            for j in prange(height, nogil=True, schedule='dynamic'):
-                arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+    #with parallel(num_threads=8):
+    #    for i in prange(width, nogil=True, schedule='dynamic'):
+    #        for j in prange(height, nogil=True, schedule='dynamic'):
+    #            arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
+    for i in range(width):
+        for j in range(height):
+            arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, i, j)
+            print(i, j)
     return arr
 
-cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter):
-    print('in function')
+cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal n_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter) except *:
     cdef unsigned int i,j
     cdef unsigned int** arr = <unsigned int**>malloc(width * sizeof(unsigned int*))
     cdef _cydecimal_ptr r1 = <_cydecimal_ptr>malloc(width*sizeof(_cydecimal))
@@ -89,13 +123,11 @@ cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydec
     cdef list data
     for i in prange(width, nogil=True, schedule='dynamic', num_threads=8):
         arr[i] = <unsigned int*>malloc(height * sizeof(unsigned int))
-
-    print('started allocation')
-    linspace(r1, width, &n_recip, xmin, xmax)
-    linspace(r2, height, &n_recip, ymin, ymax)
-    print('done allocation')
+    linspace(r1, width, n_recip, xmin, xmax)
+    linspace(r2, height, n_recip, ymin, ymax)
+    print('got this far')
     main1(arr,r1, r2, width, height, maxiter)
-    print('done allocation1')
+    print('further')
     free(r2)
     free(r1)
     data = ui_2_list(arr,width, height)
