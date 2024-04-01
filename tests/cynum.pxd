@@ -17,8 +17,8 @@ cdef extern from * nogil:
 typedef short exponent_t; //  formerly short
 typedef unsigned short iterable_t;  // formerly ushort
 
-#define N_DIGITS ((iterable_t)40)
-#define N_PRECISION ((iterable_t)10)
+#define N_DIGITS ((iterable_t)150)
+#define N_PRECISION ((iterable_t)5)
 #define N_DIGITS_I ((iterable_t)(N_DIGITS-1))
 #define MAX_INDICE ((iterable_t)(N_DIGITS+N_PRECISION-1))
 #define MAX_LENGTH ((iterable_t)(N_DIGITS+N_PRECISION))
@@ -33,6 +33,7 @@ const char ZERO_ARRAY[MAX_LENGTH] = {0};
 
 struct _cydecimal {
     char digits[MAX_LENGTH];
+    char memory[MAX_LENGTH];
     exponent_t exp; 
     bool negative;
 };
@@ -205,8 +206,19 @@ static inline bool _true_greater_than(struct _cydecimal first, struct _cydecimal
     }
 
     if (first.exp > second.exp) { // minimize exp i.e BRING DIGITS TO THE LEFT OF THE DECIMAL
+        if ((first.exp - second.exp) > N_DIGITS_I){ // if pushed suuuuper far back
+            return true;
+        }
         _left_shift_digits(&first, first.exp - second.exp);
     } else if (second.exp > first.exp) {
+        if ((second.exp - first.exp) > N_DIGITS_I){
+            return false;
+        }
+        //if (first.digits[N_DIGITS_I]==9 && (first.exp==-60 && second.exp==0) ){
+            //printf("testing here %s %s\\n", _dec_2_str(&second), _dec_2_str(&first));
+            //_left_shift_digits(&second, second.exp - first.exp);
+            //printf("testing once more %s %s\\n", _dec_2_str(&second), _dec_2_str(&first));
+        //}
         _left_shift_digits(&second, second.exp - first.exp);
     }
     return _greater_than_digits(first, second);
@@ -270,8 +282,14 @@ static inline bool _true_less_than(struct _cydecimal first, struct _cydecimal se
         return true;
     }
     if (first.exp > second.exp) {
+        if ((first.exp - second.exp) > N_DIGITS_I){
+            return true;
+        }
         _left_shift_digits(&first, first.exp - second.exp);
     } else if (second.exp > first.exp) {
+        if ((second.exp - first.exp) > N_DIGITS_I){ // havent actually checked out this math
+            return false;
+        }
         _left_shift_digits(&second, second.exp - first.exp);
     }
     return _less_than_digits(first, second);
@@ -348,18 +366,14 @@ static inline char _close_zero(const _cydecimal_ptr first){
         return 1;  // if the exponent is super slow i.e practically zero
     } // 1 means YES - NUMBER IS ZERO
     else if (first->exp < -(N_DIGITS)){
-        _normalize_digits(first, false);
-        temp = ((first->exp)-_n_whole_digits(first)); // this is ignoring the decimal portion of the array - will check later
-        if (temp < -(N_DIGITS)){ 
-            return 0; // YES - NUMBER CLOSE TO ZERO, NO CALCULATIONS CAN BE FURTHER PERFORMED BUT THERE MAY STILL BE SPACE TO THE RIGHT
-        }
-        else{
-            _normalize_digits(first, true); // maybe pushy (i.e removing beginning digits)
-            temp = ((first->exp)-_n_precision(first));
-            if (temp < -(N_PRECISION)){ 
-                return 0; // YES - NUMBER CLOSE TO ZERO, NO CALCULATIONS CAN BE FURTHER PERFORMED BUT THERE MAY STILL BE SPACE TO THE RIGHT
-            }
-        }
+        return 0;
+        // else{
+        //     _normalize_digits(first, true); // maybe pushy (i.e removing beginning digits)
+        //     temp = ((first->exp)-_n_precision(first));
+        //     if (temp < -(N_PRECISION)){ 
+        //         return 0; // YES - NUMBER CLOSE TO ZERO, NO CALCULATIONS CAN BE FURTHER PERFORMED BUT THERE MAY STILL BE SPACE TO THE RIGHT
+        //     }
+        // }
     }
     return -1;  // NO - NUMBER DID NOT FILL UP ENTIRELY OR THE N_DIGITS SPACE
 }
@@ -368,6 +382,25 @@ static inline bool _is_zero(const _cydecimal_ptr first){
     return strcmp(first->digits, ZERO_ARRAY)==0; // easier tbh
 }
 
+static inline void _round_decimal(_cydecimal_ptr first){ // assuming system code is rounding this decimal i.e _close_zero has determined to round
+    _normalize_digits(first, true); // redundant, remove later
+    iterable_t digs;
+    if (first->exp > (-N_DIGITS)){
+        digs = N_DIGITS+(first->exp); // # digits to round to ZERO
+        exponent_t i;
+        for (i=digs; i > -1;i--){
+            first->digits[N_DIGITS-i] = 0;
+        }
+    }
+    else if (first->exp < (-N_DIGITS)){
+        digs = -(first->exp)-N_DIGITS;
+        exponent_t i;
+        for (i=digs; i > -1;i--){
+            first->digits[N_DIGITS-i] = 0;
+        }
+    }
+    _normalize_digits(first, false);
+}
 
     '''
     ctypedef unsigned short iterable_t
@@ -387,6 +420,7 @@ static inline bool _is_zero(const _cydecimal_ptr first){
 
     cdef struct _cydecimal:
         char[MAX_LENGTH] digits
+        char[MAX_LENGTH] memory
         exponent_t exp
         bool negative
     ctypedef (_cydecimal*) _cydecimal_ptr
@@ -421,6 +455,8 @@ static inline bool _is_zero(const _cydecimal_ptr first){
     const void _negate(_cydecimal_ptr first) noexcept nogil
     const char _close_zero(_cydecimal_ptr first) noexcept nogil
     const bool _is_zero(_cydecimal_ptr first) noexcept nogil
+    const void _round_decimal(_cydecimal_ptr first) noexcept nogil
+
 cdef inline _cydecimal _norm_decimal_from_double(const double first) noexcept nogil
 cdef inline _cydecimal _decimal_from_string(const char* first) noexcept nogil
 cdef inline _cydecimal _norm_decimal_from_string(const char* first) noexcept nogil

@@ -64,8 +64,12 @@ static struct _cydecimal _square_decimal(const struct _cydecimal first) {
     }
 
     _normalize_digits(&result, false);
-    if (_close_zero(&result) > -1){
+    const char r = _close_zero(&result);
+    if (r==1){
         return _empty_decimal();
+    }
+    else if(r==0){
+        _round_decimal(&result);
     }
     return result;
 }
@@ -122,8 +126,12 @@ static struct _cydecimal _mult_decimal_decimal_digit(const _cydecimal_ptr first,
         }
         ++place_val;  // This line adds the carry-over to the next digit
     }
-    if (_close_zero(&result) > -1){
+    const char r = _close_zero(&result);
+    if (r==1){
         return _empty_decimal();
+    }
+    else if(r==0){
+        _round_decimal(&result);
     }
     return result;
 }
@@ -182,8 +190,12 @@ static struct _cydecimal _mult_decimals(const struct _cydecimal first, const str
     }
 
     _normalize_digits(&result, false);
-    if (_close_zero(&result) > -1){
+    const char r = _close_zero(&result);
+    if (r==1){
         return _empty_decimal();
+    }
+    else if(r==0){
+        _round_decimal(&result);
     }
     return result;
 }
@@ -509,8 +521,12 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
     if (negate) {
         first.negative = true;
     }
-    if (_close_zero(&first) > -1){
+    const char r = _close_zero(&first);
+    if (r==1){
         return _empty_decimal();
+    }
+    else if(r==0){
+        _round_decimal(&first);
     }
     return first;
 }
@@ -520,6 +536,9 @@ static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecima
     if (first.exp > second.exp) {
         _left_shift_digits(&first, (first.exp - second.exp));
     } else if (second.exp > first.exp) {
+        // if ((second.exp - first.exp) > N_DIGITS_I){
+        //     return false;
+        // }
         _left_shift_digits(&second, second.exp - first.exp);
     }
     if (first.negative ^ second.negative){  // if either one is negative, essentially subtraction
@@ -562,8 +581,12 @@ static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecima
             overflow = (char)((res - overflow) * 0.1);
         }
     }
-    if (_close_zero(&first) > -1){
+    const char r = _close_zero(&first);
+    if (r==1){
         return _empty_decimal();
+    }
+    else if(r==0){
+        _round_decimal(&first);
     }
     return first;
 }

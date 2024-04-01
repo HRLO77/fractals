@@ -21,17 +21,24 @@ cdef unsigned int mandelbrot( _cydecimal creal,  _cydecimal cimag, const unsigne
     cdef unsigned int n
     for n in range(maxiter):
 
+        if (testi==3 and testj==40):
+            print(dec_2_str(real), dec_2_str(imag))
+
         real2 = _square_decimal(real) # x^2 + y^2
 
         imag2 = _square_decimal(imag)
 
         temp1 = _add_decimals(real2, imag2) # x^2 + y^2 > 4
 
+        if (testi==3 and testj==40):
+            print('got past', dec_2_str(temp1))
 
         #if (_is_zero(&real2) and _is_zero(&imag2)):
         #    return maxiter
 
         if _true_greater_than(temp1,FOUR):
+            if (testi==3 and testj==40):
+                print(n, dec_2_str(real), dec_2_str(imag))
             return n
 
 
@@ -52,7 +59,7 @@ cdef inline void linspace(_cydecimal_ptr arr, const unsigned int n, _cydecimal n
         arr[i] = start
         start = _add_decimals(start, temp)
 
-cdef list ui_2_list(const unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:
+cdef list ui_2_list(unsigned int** arr, const unsigned int xlen, const unsigned int ylen) except *:
     cdef list l = []
     cdef list k = []
     cdef unsigned int i,j
@@ -73,9 +80,8 @@ cdef unsigned int** main1(unsigned int** arr, const _cydecimal_ptr r1, const _cy
     #            arr[i][j] = mandelbrot(r1[i], r2[j], maxiter)
     for i in range(width):
         for j in range(height):
-            arr[i][j] = mandelbrot(r1[i], r2[j], maxiter,i, j)
-        if i%5==0:
-            printf("%d\r", i)
+            arr[i][j] = mandelbrot(r1[i], r2[j], maxiter, i, j)
+        printf("%d\n", i)
     return arr
 
 cdef public list main(const _cydecimal xmin, const _cydecimal xmax, const _cydecimal ymin, const _cydecimal ymax, const _cydecimal x_recip, const _cydecimal y_recip, const unsigned int width, const unsigned int height, const unsigned int maxiter) except *:

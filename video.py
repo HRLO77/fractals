@@ -1,7 +1,17 @@
 from os import add_dll_directory
 add_dll_directory('/MinGW/bin/')
 import time
-import video_copy
+from matplotlib import pyplot as plt
+from video_copy import _data
+try:
+    img = plt.imshow(_data, cmap='flag')
+    plt.colorbar()
+    print(img)
+    plt.show()
+except BaseException as e:
+    print('im here')
+    raise e
+print('im here2')
 exit()
 import src.mandelbrot_decimal as mandelbrot_decimal
 import src.mandelbrot as mandelbrot
