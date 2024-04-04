@@ -1,5 +1,21 @@
 from os import add_dll_directory
 add_dll_directory('/MinGW/bin/')
+# beg = [-0.16, -1.0304]
+# x = beg
+# dist = 0
+# while dist < 4:
+#     dist = x[0] * x[0] + x[1] * x[1]
+    
+#     imag2 = x[1] * x[1]  # y**2 as backup
+#     realimag = x[0] * x[1]  # x*y
+#     double = realimag * 2  # 2*x*y
+#     x[1] = beg[1] + double  # (2*x*y)+cimag
+    
+#     real2 = x[0] * x[0]  # x**2
+#     real2 = real2 - imag2  # (x^2-y^2)
+#     x[0] = real2 + beg[0]  # (x^2-y^2)+creal
+#     print(x)
+
 from tests.unittest import main
 main()
 exit()

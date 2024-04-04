@@ -1,4 +1,4 @@
-from .cynum cimport _subtract_decimals, _add_decimals, _norm_decimal_from_string, _mult_decimals, _square_decimal, _abs_dec, _dec_2_str, dec_2_str, _printf_dec, printf_dec, _cydecimal, add_decimals, subtract_decimals, mult_decimals, square_decimal, _close_zero
+from .cynum cimport _subtract_decimals, _add_decimals, _norm_decimal_from_string, _mult_decimals, _square_decimal, _abs_dec, _dec_2_str, dec_2_str, _printf_dec, printf_dec, _cydecimal, add_decimals, subtract_decimals, mult_decimals, square_decimal, _close_zero, _decimal_from_double, _round_decimal, _normalize_digits, _decimal_from_string
 from libc.stdio cimport printf, puts
 
 cpdef inline str dec_str(_cydecimal dec) noexcept:
@@ -41,7 +41,15 @@ cpdef public int main():
     print(f"\nsquare test\nExpected: {first_d*first_d}, {second_d*second_d}")
     print(f"Tested: {dec_str(_square_decimal(first_cy))} {dec_str(_square_decimal(second_cy))}")
 
-    cdef _cydecimal misc = _norm_decimal_from_string(b'-14621746530859375.0')
-    misc.exp = -61
-    print(f'\nmisc tests\nExpected: True')
-    print(f'Tested: {_close_zero(&misc)}')
+    cdef _cydecimal misc = _decimal_from_string(b'1.982988822981491102671599478730022858343430940024659083139753932428488492942415177822113037109375')
+    _normalize_digits(&misc, True)
+    cdef _cydecimal two = _decimal_from_double(2.0)
+    print(f'\nmisc tests\nExpected: {0**0}')
+    _round_decimal(&misc, 1)
+    printf('Tested: %s\n', _dec_2_str(&misc))
+
+
+'''
+Re: -0.16
+Im: -1.03
+'''
