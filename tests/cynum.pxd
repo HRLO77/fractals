@@ -462,10 +462,6 @@ static inline char _close_zero(const _cydecimal_ptr first){
     return -1;  // NO - NUMBER DID NOT FILL UP ENTIRELY OR THE N_DIGITS SPACE
 }
 
-
-
-
-
 static inline bool _is_zero(const _cydecimal_ptr first){
     return fast_compare(first->digits, ZERO_ARRAY, MAX_LENGTH)==0; // easier tbh
 }

@@ -53,7 +53,7 @@ ctypedef list (*func_t)(
 #printf("TESTING TESTING %s \n", PyCapsule_GetName(mdt.__pyx_capi__['main']))
 cdef func_t main = <func_t>PyCapsule_GetPointer(mdt.__pyx_capi__['main'], PyCapsule_GetName(mdt.__pyx_capi__['main']))
 cdef int b=time.perf_counter()
-cdef object data = main((xmin), (xmax), (ymin), (ymax), x_recip, y_recip, 500, 500, 300)
+cdef object data = main((xmin), (xmax), (ymin), (ymax), x_recip, y_recip, 500, 500, 150)
 '''_destruct_decimal(&x_recip)
 _destruct_decimal(&xmax)
 _destruct_decimal(&xmin)

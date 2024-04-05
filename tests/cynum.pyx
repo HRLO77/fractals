@@ -69,7 +69,7 @@ static struct _cydecimal _square_decimal(struct _cydecimal first) {
         ++place_val;  // This line adds the carry-over to the next digit
     }
 
-    
+    _normalize_digits(&result, false);
     // const char r = _close_zero(&result);
     // if (r==1){
     //     return _empty_decimal();
@@ -77,10 +77,11 @@ static struct _cydecimal _square_decimal(struct _cydecimal first) {
     // else if(r==0){
     //     _round_decimal(&result);
     // }
-    if (reduce){
-        _round_decimal(&result, 2);
-    }
-    _normalize_digits(&result, false);
+    _round_decimal(&result, 2);
+    //if (reduce){ // NOTE: may have to add back
+        
+    //}
+    
     return result;
 }
 
@@ -227,7 +228,7 @@ static struct _cydecimal _mult_decimals(struct _cydecimal first, struct _cydecim
         ++place_val;  // This line adds the carry-over to the next digit
     }
 
-    
+    _normalize_digits(&result, false);
     // const char r = _close_zero(&result);
     // if (r==1){
     //     return _empty_decimal();
@@ -235,10 +236,11 @@ static struct _cydecimal _mult_decimals(struct _cydecimal first, struct _cydecim
     // else if(r==0){
     //     _round_decimal(&result);
     // }
-    if (reduce){
-        _round_decimal(&result, 2); // to 2/3
-    }
-    _normalize_digits(&result, false);
+    _round_decimal(&result, 2);
+    // if (reduce){ // NOTE: may have to add back
+    //     _round_decimal(&result, 1); // to 2/3
+    // }
+    
     return result;
 }
 
@@ -473,13 +475,40 @@ static struct _cydecimal _norm_decimal_from_int(int first) {
     return res;
 }
 
-static struct _cydecimal _add_decimals();
+static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second);
 
 static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cydecimal second) {
     exponent_t i;
     char x, y, res=0;
     bool small = false, negate = false, both=(first.negative && second.negative);
     struct _cydecimal temp;
+
+    iterable_t  dig2 = _n_whole_digits(&second);
+    iterable_t dig1 = _n_whole_digits(&first);
+    // NOTE : TODO : revamp this system to also account for the length of digits - with _subtract_decimals too
+    const bool dig1_b = ((dig1 >= MAX_INDICE) && (abs(first.exp) >= abs(MAX_INDICE-dig1)));
+    const bool dig2_b = ((dig2 >= MAX_INDICE) && (abs(second.exp) >= abs(MAX_INDICE-dig2)));
+    const exponent_t to_move = (abs(abs(first.exp)-abs(second.exp)));
+    
+    if (dig1_b || dig2_b){
+        if (dig1_b && dig2_b){
+            _round_decimal(&first, 1);
+            _round_decimal(&second, 1);
+        }
+        else if (dig1_b){
+            i=to_move;
+            if (i > (dig1-dig2)) i=(dig1-dig2);
+            _left_shift_digits(&second, (i)/2); // make the second one left shifted and the first one right shifted halfway
+            _right_shift_digits(&first, (i)/2);
+        }
+        else{ // second is too large
+            i=to_move;
+            if (i > (dig2-dig1)) i=(dig2-dig1);
+            _left_shift_digits(&first, (i)/2); // make the second one left shifted and the first one right shifted halfway
+            _right_shift_digits(&second, (i)/2);
+        } // this function should handle very large cases
+    }
+
     if (first.exp > second.exp){  // we want to BRING ALL DIGITS TO THE LEFT OF THE DECIMAL NOW
         _left_shift_digits(&first, first.exp-second.exp);  // bring up value
     }
@@ -560,20 +589,45 @@ static struct _cydecimal _subtract_decimals(struct _cydecimal first, struct _cyd
     if (negate) {
         first.negative = true;
     }
-    const char r = _close_zero(&first);
-    if (r==1){
-        return _empty_decimal();
-    }
-    else if(r==0){
-        _round_decimal(&first, 2);
-    }
+    // const char r = _close_zero(&first);
+    // if (r==1){
+    //     return _empty_decimal();
+    // }
+    // else if(r==0){
+    //     _round_decimal(&first, 2);
+    // }
     return first;
 }
 
 static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecimal second) {
     iterable_t i;
-    if (first.exp > second.exp) {
-        _left_shift_digits(&first, (first.exp - second.exp));
+        iterable_t  dig2 = _n_whole_digits(&second);
+    iterable_t dig1 = _n_whole_digits(&first);
+    // NOTE : TODO : revamp this system to also account for the length of digits - with _subtract_decimals too
+    const bool dig1_b = ((dig1 >= MAX_INDICE) && (abs(first.exp) >= abs(MAX_INDICE-dig1)));
+    const bool dig2_b = ((dig2 >= MAX_INDICE) && (abs(second.exp) >= abs(MAX_INDICE-dig2)));
+    const exponent_t to_move = (abs(abs(first.exp)-abs(second.exp)));
+    
+    if (dig1_b || dig2_b){
+        if (dig1_b && dig2_b){
+            _round_decimal(&first, 1);
+            _round_decimal(&second, 1);
+        }
+        else if (dig1_b){
+            i=to_move;
+            if (i > (dig1-dig2)) i=(dig1-dig2);
+            _left_shift_digits(&second, (i)/2); // make the second one left shifted and the first one right shifted halfway
+            _right_shift_digits(&first, (i)/2);
+        }
+        else{ // second is too large
+            i=to_move;
+            if (i > (dig2-dig1)) i=(dig2-dig1);
+            _left_shift_digits(&first, (i)/2); // make the second one left shifted and the first one right shifted halfway
+            _right_shift_digits(&second, (i)/2);
+        } // this function should handle very large cases
+    }
+    if ((first.exp > second.exp)) {
+        _left_shift_digits(&first, (first.exp - second.exp)); // trying to make first less - closer to second i.e minimize exp
     } else if (second.exp > first.exp) {
         _left_shift_digits(&second, second.exp - first.exp);
     }
@@ -617,13 +671,13 @@ static struct _cydecimal _add_decimals(struct _cydecimal first, struct _cydecima
             overflow = (char)((res - overflow) * 0.1);
         }
     }
-    const char r = _close_zero(&first);
-    if (r==1){
-        return _empty_decimal();
-    }
-    else if(r==0){
-        _round_decimal(&first, 2);
-    }
+    // const char r = _close_zero(&first);
+    // if (r==1){
+    //     return _empty_decimal();
+    // }
+    // else if(r==0){
+    //     _round_decimal(&first, 2);
+    // }
     return first;
 }
 
