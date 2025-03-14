@@ -6,7 +6,7 @@ from libc.stdio cimport puts,printf
 from libc.stdlib cimport free, malloc
 from libc.math cimport ceil as cround
 import decimal
-decimal.getcontext().prec = 73
+decimal.getcontext().prec = 85
 
 cdef extern from "<stdbool.h>" nogil:
     ctypedef bint _Bool
@@ -15,7 +15,7 @@ cdef extern from "<stdbool.h>" nogil:
     const bool likely(bool T) noexcept nogil
 
 
-cdef object quarter = decimal.Decimal('0.25')
+#cdef object quarter = decimal.Decimal('0.25')
 cdef object four = decimal.Decimal('4')
 cdef object two = decimal.Decimal('2')
 
@@ -23,13 +23,14 @@ cdef inline unsigned int mandelbrot(object creal, object cimag, const unsigned i
     cdef object real2, imag2
     cdef object real = creal, imag = cimag
     cdef unsigned int n
-    real2 = creal*creal 
-    imag2 = cimag*cimag
-    real2 = real2+imag2
-    if (real2) <= quarter * imag2:
-        return maxiter
-    elif real2 >= four:
-        return 0
+    #real2 = creal*creal 
+    #imag2 = cimag*cimag
+    #real2 = real2+imag2
+    #if (real2) <= quarter * imag2:
+    #    return maxiter
+    #elif real2 >= four:
+    #    return 0
+
     for n in range(maxiter):
         real2 = real*real
         imag2 = imag*imag
@@ -37,8 +38,9 @@ cdef inline unsigned int mandelbrot(object creal, object cimag, const unsigned i
             return n
         imag = two* real*imag + cimag
         real = real2 - imag2 + creal
-        if (imag == cimag) and (real == creal):
-            return maxiter
+        #if (imag == cimag):
+        #    if (real==creal):
+        #        return maxiter
     return maxiter
 
 cdef unsigned int** main1(unsigned int** arr, list[object] r1, list[object] r2, const unsigned int width, const unsigned int height, const unsigned int maxiter) noexcept:

@@ -32,7 +32,7 @@ class cydecimal:
         if isinstance(init, str):
             init = init.encode()
         assert len(init)==MAX_LENGTH, f"Provided init string must be {MAX_LENGTH} in length (NULL padded, decimal at indice {N_DIGITS})"
-        return (new_decimal(init, exponent, negative))
+        return (new_decimal(init, exponent, negative, len(init)))
 
 
     def __add__(self, other):

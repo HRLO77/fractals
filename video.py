@@ -1,65 +1,57 @@
 from os import add_dll_directory
 add_dll_directory('/MinGW/bin/')
-import time
-from matplotlib import pyplot as plt
-from video_copy import _data
-try:
-    img = plt.imshow(_data, cmap='flag')
-    plt.colorbar()
-    print(img)
-    plt.show()
-except BaseException as e:
-    print('im here')
-    raise e
-print('im here2')
-exit()
-import src.mandelbrot_decimal as mandelbrot_decimal
-import src.mandelbrot as mandelbrot
-import tests.precision_mandelbrot as mdt
-from tests.cynum import *
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import decimal
-decimal.getcontext().prec = 80
+decimal.getcontext().prec = 85
 import time
 import numpy as np
 import imageio
 import asyncio
 import warnings
+# from tests import unittest
+# unittest.main()
+print('executing')
+import video_copy
+plt.imshow(video_copy._data)
+plt.show()
+exit()
+import time
+from matplotlib import pyplot as plt
+
+import src.mandelbrot_decimal as mandelbrot_decimal
+import src.mandelbrot as mandelbrot
+import tests.precision_mandelbrot as mdt
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import decimal
+decimal.getcontext().prec = 85
+import time
+import numpy as np
+import imageio
+import asyncio
+import warnings
+
 warnings.filterwarnings('ignore')
 np.seterr(all="ignore", )
-# real, imag = -0.76157365, -0.0847596
-print('int')
-real, imag = norm_decimal_from_string(b'0.2505845176040427718957771316508473905552515740661571423212687174479167'), norm_decimal_from_string(b'0.00002276281458802574942404639696751451557095909568791588147481282552083')
-# other possible zooms,  (-1.62917,-0.0203968)  (0.42884,-0.231345)
+real, imag = decimal.Decimal('0.2505845176040427718957771316508473905552515740661571423212687174479167'), decimal.Decimal('0.00002276281458802574942404639696751451557095909568791588147481282552083')
 # data = np.rot90(new_video.main(-2, 0.5, -1.3, 0, 500, 250, 100))
 # w = imageio.get_writer('mandelbrot.mp4', format='FFMPEG', mode='I', fps=30, output_params=['-preset', 'ultrafast', '-tune', 'zerolatency', '-an'], macro_block_size=16, )
-iterations = 700
-print('out')
-xmin = norm_decimal_from_string(b'-2.0')
-xmax = norm_decimal_from_string(b'1.0')
-ymin = norm_decimal_from_string(b'-1.2')
-ymax = norm_decimal_from_string(b'1.2')
-zoom_const = norm_decimal_from_string(b'0.95')
-n_recip = norm_decimal_from_double(1/100)
-print('out')
+iterations = 1000
 
-b=time.perf_counter()
-data = mdt.main((xmin), (xmax), (ymin), (ymax), n_recip, 320, 240, 100)
-plt.imshow(data)
-print(time.perf_counter()-b)
-plt.show()
+xmin = decimal.Decimal('-2.0')
+xmax = decimal.Decimal('1.0')
+ymin = decimal.Decimal('-1.2')
+ymax = decimal.Decimal('1.2')
+zoom_const = decimal.Decimal('0.95')
+#n_recip = norm_decimal_from_double(1/100)
+
 def thread(yt, yb, lx, rx, i):
-    # x = np.array(mandelbrot.main(yt, yb, lx, rx, 480, 480, 250+i, False), dtype=np.uint32)
-    # max = np.max(x)
-    # if max > 255:
-        # max = 255
-    # return np.invert(np.rot90(((x*(max/(250+i))).astype(np.uint8))))
     print(i, end='\r')
     if i < 535:  # 17.65 seconds in
         return np.rot90(mandelbrot.main(float(yt), float(yb), float(lx), float(rx), 320, 240, 150+round(i*(2 if i < 200 else (4 if i < 450 else (5)))), False))
     else:
-        return np.rot90(mandelbrot_decimal.run(yt, yb, lx, rx, 320, 240, 150+round((i*5))))
+        return np.rot90(mandelbrot_decimal.run(yt, yb, lx, rx, 320, 240, 2700))
 
 async def main():
     global xmin, xmax, ymin, ymax, real, imag
@@ -73,12 +65,12 @@ async def main():
         xmin = (((xmin-real)*zoom_const)+real)
         xmax = (((xmax-real)*zoom_const)+real)
         
-    data = np.array(await asyncio.gather(*data, return_exceptions=True, ), dtype=np.uint32)
+    data = np.array(await asyncio.gather(*data, return_exceptions=True, ), dtype=np.uint32) 
     print("\nWriting...\n")
     def update(n):
         ax.cla()
         ax.imshow(data[n], cmap='binary')
-        # print(n,end='\r')
+        # print(n,end='\r')cls
         # xmin = fractions.simplify_fraction(xmin)
         # ymin = fractions.simplify_fraction(ymin)
         # ymax = fractions.simplify_fraction(ymax)

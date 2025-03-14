@@ -28,13 +28,13 @@ cdef inline ui_uc mandelbrot(const long double creal, const long double cimag, c
     cdef long double real2, imag2
     cdef long double real = creal, imag = cimag
     cdef unsigned int n
-    real2 = creal*creal 
-    imag2 = cimag*cimag
-    real2 = real2+imag2
-    if (real2) <= 0.25 * imag2:
-        return return_func(cap, maxiter)
-    elif real2 >= 4.0:
-        return 0
+    #real2 = creal*creal 
+    #imag2 = cimag*cimag
+    #real2 = real2+imag2
+    #if (real2) <= 0.25 * imag2:
+    #    return return_func(cap, maxiter)
+    #elif real2 >= 4.0:
+    #    return 0
     for n in range(maxiter):
         real2 = real*real
         imag2 = imag*imag
